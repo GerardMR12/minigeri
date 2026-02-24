@@ -23,7 +23,7 @@
     "gemini"
   ],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@slack/web-api": "^7.14.1",
     "chalk": "^5.4.1",

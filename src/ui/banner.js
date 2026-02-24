@@ -18,6 +18,7 @@ ${colors.secondary(' ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══�
     const info = drawBox([
         `  ${icons.robot}  ${colors.text('Your AI command center')}                      `,
         `  ${colors.muted(`v${version}`)}                                            `,
+        `  ${colors.muted(`Path: ${process.cwd()}`)}`,
         `                                                        `,
         `  ${colors.claude('claude')} ${colors.muted('│')} ${colors.gemini('gemini')} ${colors.muted('│')} ${colors.whatsapp('whatsapp')} ${colors.muted('│')} ${colors.highlight('slack')} ${colors.muted('│')} ${colors.telegram('telegram')} ${colors.muted('│')} ${colors.warning('help')}  `,
     ], 56);

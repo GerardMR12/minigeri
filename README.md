@@ -1,15 +1,6 @@
-# minigeri 🤖
+# MiniGeri 🤖
 
 Your AI command center. A unified terminal interface that lets you talk to AI agents (Claude Code, Gemini CLI), send WhatsApp messages, and interact with Slack — all from one place.
-
-```
-     ███╗   ███╗ ██╗ ███╗   ██╗ ██╗  ██████╗  ███████╗ ██████╗  ██╗
-     ████╗ ████║ ██║ ████╗  ██║ ██║ ██╔════╝  ██╔════╝ ██╔══██╗ ██║
-     ██╔████╔██║ ██║ ██╔██╗ ██║ ██║ ██║  ███╗ █████╗   ██████╔╝ ██║
-     ██║╚██╔╝██║ ██║ ██║╚██╗██║ ██║ ██║   ██║ ██╔══╝   ██╔══██╗ ██║
-     ██║ ╚═╝ ██║ ██║ ██║ ╚████║ ██║ ╚██████╔╝ ███████╗ ██║  ██║ ██║
-     ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝ ╚═╝  ╚═════╝  ╚══════╝ ╚═╝  ╚═╝ ╚═╝
-```
 
 ---
 
@@ -29,38 +20,6 @@ npm link
 
 # 4. Launch!
 minigeri
-```
-
----
-
-## Architecture
-
-```
-cli-bot/
-├── src/
-│   ├── minigeri.js          # Main interactive shell (entry point)
-│   ├── index.js             # Legacy Commander.js CLI
-│   ├── config.js            # Configuration (~/.cli-bot/config.json)
-│   ├── executor.js          # Process spawning for CLI agents
-│   ├── agents/              # AI agent integrations
-│   │   ├── base.js          #   Abstract base class
-│   │   ├── claude-code.js   #   Claude Code wrapper
-│   │   ├── gemini-cli.js    #   Gemini CLI wrapper
-│   │   └── index.js         #   Agent registry
-│   ├── services/            # External service integrations
-│   │   ├── whatsapp.js      #   WhatsApp via whatsapp-web.js
-│   │   └── slack.js         #   Slack via @slack/web-api
-│   ├── connectors/          # Message routing connectors (future)
-│   │   ├── base.js          #   Abstract base class
-│   │   └── index.js         #   Connector registry
-│   └── ui/                  # Terminal UI components
-│       ├── theme.js         #   Colors, box drawing, icons
-│       ├── banner.js        #   ASCII art banner
-│       └── help.js          #   Help screen
-├── .env.example             # Environment variable template
-├── .gitignore
-├── package.json
-└── README.md
 ```
 
 ---
@@ -408,4 +367,4 @@ WhatsApp doesn't need any environment variables — it authenticates via QR code
 
 ## License
 
-ISC
+MIT
