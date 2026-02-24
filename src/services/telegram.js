@@ -4,6 +4,7 @@ import { createAgent } from '../agents/index.js';
 import { getAgent } from '../config.js';
 import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand } from '../utils/cmd.js';
+import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
 
 let bot = null;
 let isConnected = false;
@@ -235,11 +236,18 @@ async function handleIncomingMessage(msg, botInstance) {
                     const response = await agent.send(prompt);
 
                     // Send back
-                    await botInstance.sendMessage(chatId, response || '[No response]', { parse_mode: 'Markdown' })
-                        .catch(err => {
-                            // If Markdown parsing fails (ex. unclosed backticks), fallback to raw text
-                            return botInstance.sendMessage(chatId, response || '[No response]');
-                        });
+                    const textToSend = response || '[No response]';
+                    const formattedText = formatTelegramMarkdown(textToSend);
+                    const chunks = splitTelegramMessage(formattedText);
+
+                    for (const chunk of chunks) {
+                        try {
+                            await botInstance.sendMessage(chatId, chunk, { parse_mode: 'Markdown' });
+                        } catch (err) {
+                            // If Markdown parsing fails (ex. unclosed backticks), fallback to raw text without parse_mode
+                            await botInstance.sendMessage(chatId, chunk);
+                        }
+                    }
 
                     console.log(botColor(`  ${icons.check} Replied to Telegram user with ${agentName} response`));
                 } catch (err) {

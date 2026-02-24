@@ -8,6 +8,7 @@ import { createAgent } from '../agents/index.js';
 import { getAgent } from '../config.js';
 import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand } from '../utils/cmd.js';
+import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
 
 let client = null;
 let isReady = false;
@@ -207,7 +208,14 @@ async function handleIncomingMessage(msg) {
                     const agent = createAgent(agentName, config);
 
                     const response = await agent.send(prompt);
-                    await msg.reply(response || '[No response]');
+
+                    const textToSend = response || '[No response]';
+                    const formattedText = formatTelegramMarkdown(textToSend);
+                    const chunks = splitTelegramMessage(formattedText);
+
+                    for (const chunk of chunks) {
+                        await msg.reply(chunk);
+                    }
 
                     console.log(botColor(`  ${icons.check} Replied to WhatsApp user with ${agentName} response`));
                 } catch (err) {
