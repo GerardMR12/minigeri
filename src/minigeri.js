@@ -97,10 +97,10 @@ async function handleGemini(args, rl) {
     }
 
     console.log(colors.gemini(`\n  ${icons.spark} Asking Gemini...`));
-    console.log(colors.muted('  ─────────────────────────────────────────────\n'));
+    console.log(colors.muted('───────────────────────────────────────────────\n'));
     try {
         await agent.send(prompt);
-        console.log(colors.muted('\n  ─────────────────────────────────────────────'));
+        console.log(colors.muted('\n───────────────────────────────────────────────'));
     } catch (err) {
         console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
     }
@@ -375,6 +375,9 @@ async function main() {
     rl.prompt();
 
     rl.on('line', async (line) => {
+        // Cleanly wipe the ghost suggestion text that was left on the previous line
+        process.stdout.write('\x1B[1A\x1B[2K\x1B[0G' + rl._prompt + line + '\n');
+
         const input = line.trim();
 
         if (!input) {
