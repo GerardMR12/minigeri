@@ -316,6 +316,8 @@ async function main() {
     await slackAutoConnect();
     await tgAutoConnect();
 
+    console.log(colors.muted(`  ${icons.star} Hello! What can I do for you today?`));
+
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
@@ -403,6 +405,7 @@ async function main() {
                 case 'cls':
                     console.clear();
                     showBanner(pkg.version);
+                    console.log(colors.muted(`  ${icons.star} Hello! What can I do for you today?`));
                     break;
 
                 case 'exit':
