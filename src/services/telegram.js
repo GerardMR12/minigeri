@@ -3,6 +3,7 @@ import { colors, icons } from '../ui/theme.js';
 import { createAgent } from '../agents/index.js';
 import { getAgent } from '../config.js';
 import { getHelpText } from '../ui/help.js';
+import { handleSafeCommand } from '../utils/cmd.js';
 
 let bot = null;
 let isConnected = false;
@@ -197,6 +198,18 @@ async function handleIncomingMessage(msg, botInstance) {
         if (lowText === 'help' || lowText === '/help') {
             botInstance.sendMessage(chatId, getHelpText(), { parse_mode: 'Markdown' });
             console.log(colors.telegram(`  ${icons.check} Sent help message to Telegram user`));
+        } else if (lowText === '/folder') {
+            botInstance.sendMessage(chatId, `📁 *Current Directory:*\n\`${process.cwd()}\``, { parse_mode: 'Markdown' });
+            console.log(colors.telegram(`  ${icons.check} Sent folder path to Telegram user`));
+        } else if (textStr.startsWith('/cmd ') || textStr === '/cmd') {
+            const cmdStr = textStr.substring(5).trim();
+            if (!cmdStr) {
+                botInstance.sendMessage(chatId, `Please provide a command. Example: /cmd ls -la`);
+            } else {
+                console.log(colors.telegram(`  [Running secure command via Telegram: ${cmdStr}]`));
+                const response = await handleSafeCommand(cmdStr);
+                botInstance.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+            }
         } else if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
             agentName = 'gemini-cli';
             prompt = textStr.substring(7).trim();

@@ -7,6 +7,7 @@ import { homedir } from 'os';
 import { createAgent } from '../agents/index.js';
 import { getAgent } from '../config.js';
 import { getHelpText } from '../ui/help.js';
+import { handleSafeCommand } from '../utils/cmd.js';
 
 let client = null;
 let isReady = false;
@@ -170,6 +171,18 @@ async function handleIncomingMessage(msg) {
     if (lowText === 'help' || lowText === '/help') {
         await msg.reply(getHelpText());
         console.log(colors.whatsapp(`  ${icons.check} Sent help message to WhatsApp user`));
+    } else if (lowText === '/folder') {
+        await msg.reply(`📁 *Current Directory:*\n\`${process.cwd()}\``);
+        console.log(colors.whatsapp(`  ${icons.check} Sent folder path to WhatsApp user`));
+    } else if (textStr.startsWith('/cmd ') || textStr === '/cmd') {
+        const cmdStr = textStr.substring(5).trim();
+        if (!cmdStr) {
+            await msg.reply(`Please provide a command. Example: /cmd ls -la`);
+        } else {
+            console.log(colors.whatsapp(`  [Running secure command via WhatsApp: ${cmdStr}]`));
+            const response = await handleSafeCommand(cmdStr);
+            await msg.reply(response);
+        }
     } else {
         let agentName = null;
         let prompt = '';

@@ -234,6 +234,14 @@ async function handleTelegram(args) {
     }
 }
 
+async function handleFolder() {
+    const cwd = process.cwd();
+    console.log(`\n  ${colors.primary.bold('Current Directory')}`);
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.accent(icons.gear)} ${colors.text(cwd)}`);
+    console.log('');
+}
+
 async function handleStatus() {
     const config = loadConfig();
     const agentNames = listAgentNames();
@@ -318,7 +326,7 @@ async function main() {
                 'wa connect', 'wa send', 'wa status', 'wa disconnect',
                 'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
                 'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
-                'status', 'help', 'clear', 'exit', 'quit',
+                'status', 'help', 'clear', 'exit', 'quit', 'folder', 'cd',
             ];
             const hits = commands.filter((c) => c.startsWith(line.trim()));
             return [hits.length ? hits : commands, line];
@@ -367,6 +375,21 @@ async function main() {
                     break;
 
                 // ── System ──
+                case 'cd': {
+                    const dir = args.join(' ') || process.env.HOME || '/';
+                    try {
+                        process.chdir(dir);
+                    } catch (err) {
+                        console.log(colors.error(`  ${icons.cross} Error changing directory: ${err.message}`));
+                    }
+                    console.log('');
+                    break;
+                }
+
+                case 'folder':
+                    await handleFolder();
+                    break;
+
                 case 'status':
                     await handleStatus();
                     break;

@@ -6,6 +6,8 @@ export function getHelpText() {
 *Available commands:*
 • \`/gemini [prompt]\` — Talk to Gemini CLI
 • \`/claude [prompt]\` — Talk to Claude Code
+• \`/folder\` — Show current working directory
+• \`/cmd [cmd]\` — Run safe remote commands (cd, mkdir, ls)
 • \`help\` — Show this help message
 
 *Examples:*
@@ -64,6 +66,8 @@ export function showHelp() {
     // ── System ──
     console.log(colors.accent.bold('  System'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.accent.bold('folder')}                 ${colors.text('Show current working directory')}`);
+    console.log(`  ${colors.accent.bold('cd <dir>')}               ${colors.text('Change current directory')}`);
     console.log(`  ${colors.accent.bold('status')}                 ${colors.text('Show all services status')}`);
     console.log(`  ${colors.accent.bold('help')}                   ${colors.text('Show this help')}`);
     console.log(`  ${colors.accent.bold('clear')}                  ${colors.text('Clear the screen')}`);
