@@ -2,6 +2,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { colors, icons } from '../ui/theme.js';
 import { createAgent } from '../agents/index.js';
 import { getAgent } from '../config.js';
+import { getHelpText } from '../ui/help.js';
 
 let bot = null;
 let isConnected = false;
@@ -189,10 +190,14 @@ async function handleIncomingMessage(msg, botInstance) {
     // Process bot commands like /gemini or /claude
     if (msg.text) {
         const textStr = msg.text.trim();
+        const lowText = textStr.toLowerCase();
         let agentName = null;
         let prompt = '';
 
-        if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
+        if (lowText === 'help' || lowText === '/help') {
+            botInstance.sendMessage(chatId, getHelpText(), { parse_mode: 'Markdown' });
+            console.log(colors.telegram(`  ${icons.check} Sent help message to Telegram user`));
+        } else if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
             agentName = 'gemini-cli';
             prompt = textStr.substring(7).trim();
         } else if (textStr.startsWith('/claude ') || textStr === '/claude') {

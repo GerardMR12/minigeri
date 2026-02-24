@@ -4,6 +4,9 @@ import qrcode from 'qrcode-terminal';
 import { colors, icons } from '../ui/theme.js';
 import { join } from 'path';
 import { homedir } from 'os';
+import { createAgent } from '../agents/index.js';
+import { getAgent } from '../config.js';
+import { getHelpText } from '../ui/help.js';
 
 let client = null;
 let isReady = false;
@@ -42,6 +45,8 @@ function getClient() {
             // Re-show prompt
             process.stdout.write(colors.primary('  minigeri ▸ '));
         });
+
+        client.on('message', (msg) => handleIncomingMessage(msg));
 
         client.on('disconnected', (reason) => {
             console.log(colors.warning(`\n  ${icons.warning} WhatsApp disconnected: ${reason}`));
@@ -143,4 +148,63 @@ export async function waDisconnect() {
     } else {
         console.log(colors.muted(`  Not connected`));
     }
+}
+
+/**
+ * Handle incoming WhatsApp messages and route bot commands.
+ */
+async function handleIncomingMessage(msg) {
+    const from = msg.from;
+    const body = msg.body || '';
+    const contact = await msg.getContact();
+    const sender = contact.pushname || contact.name || from;
+
+    console.log('');
+    console.log(colors.whatsapp(`  📩 WhatsApp Message`));
+    console.log(colors.muted(`     From: ${sender} (${from})`));
+    console.log(colors.text(`     ${body || '[non-text message]'}`));
+
+    const textStr = body.trim();
+    const lowText = textStr.toLowerCase();
+
+    if (lowText === 'help' || lowText === '/help') {
+        await msg.reply(getHelpText());
+        console.log(colors.whatsapp(`  ${icons.check} Sent help message to WhatsApp user`));
+    } else {
+        let agentName = null;
+        let prompt = '';
+
+        if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
+            agentName = 'gemini-cli';
+            prompt = textStr.substring(7).trim();
+        } else if (textStr.startsWith('/claude ') || textStr === '/claude') {
+            agentName = 'claude-code';
+            prompt = textStr.substring(7).trim();
+        }
+
+        if (agentName) {
+            if (!prompt) {
+                await msg.reply(`Please provide a prompt. Example: /${agentName === 'gemini-cli' ? 'gemini' : 'claude'} Hello!`);
+            } else {
+                console.log(colors.muted(`\n  [Routing WhatsApp message to ${agentName}...]`));
+                const botColor = agentName === 'gemini-cli' ? colors.gemini : colors.claude;
+
+                try {
+                    const config = getAgent(agentName);
+                    const agent = createAgent(agentName, config);
+
+                    const response = await agent.send(prompt);
+                    await msg.reply(response || '[No response]');
+
+                    console.log(botColor(`  ${icons.check} Replied to WhatsApp user with ${agentName} response`));
+                } catch (err) {
+                    await msg.reply(`❌ Error from ${agentName}: ${err.message}`);
+                    console.log(colors.error(`  ${icons.cross} Error from agent: ${err.message}`));
+                }
+            }
+        }
+    }
+
+    console.log('');
+    process.stdout.write(colors.primary('  minigeri ▸ '));
 }

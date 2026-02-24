@@ -1,5 +1,18 @@
 import { colors, drawBox, icons } from './theme.js';
 
+export function getHelpText() {
+    return `🤖 *minigeri messaging help*
+
+*Available commands:*
+• \`/gemini [prompt]\` — Talk to Gemini CLI
+• \`/claude [prompt]\` — Talk to Claude Code
+• \`help\` — Show this help message
+
+*Examples:*
+• \`/gemini What is the capital of France?\`
+• \`/claude Suggest 3 names for a cat\``;
+}
+
 export function showHelp() {
     console.log('');
 
