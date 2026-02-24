@@ -4,8 +4,8 @@ import readline from 'readline';
 import { spawn } from 'child_process';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
+import { dirname, join, resolve } from 'path';
+import { readFileSync, existsSync, statSync } from 'fs';
 
 import { colors, icons } from './ui/theme.js';
 import { showBanner } from './ui/banner.js';
@@ -288,6 +288,19 @@ function handleShellCommand(cmd) {
 // ─── Main Interactive Shell ────────────────────────────────────────
 
 async function main() {
+    // Check if an initial directory argument was provided
+    const args = process.argv.slice(2);
+    if (args.length > 0) {
+        const targetPath = resolve(process.cwd(), args[0]);
+        if (existsSync(targetPath) && statSync(targetPath).isDirectory()) {
+            // Change the process working directory
+            process.chdir(targetPath);
+        } else {
+            console.error(colors.error(`  ${icons.cross} Error: Directory not found or is not a directory: ${args[0]}`));
+            process.exit(1);
+        }
+    }
+
     console.clear();
     showBanner(pkg.version);
 
@@ -372,11 +385,8 @@ async function main() {
                 case 'exit':
                 case 'quit':
                 case 'q':
-                    console.log(colors.muted(`\n  ${icons.star} Goodbye! See you next time.\n`));
-                    slackDisconnect();
-                    await tgDisconnect().catch(() => { });
-                    await waDisconnect().catch(() => { });
-                    process.exit(0);
+                    rl.close();
+                    return;
 
                 default:
                     if (input.startsWith('!')) {
@@ -405,7 +415,8 @@ async function main() {
         console.log(colors.muted(`\n  ${icons.star} Goodbye!\n`));
         slackDisconnect();
         tgDisconnect().catch(() => { });
-        waDisconnect().catch(() => { }).finally(() => process.exit(0));
+        waDisconnect().catch(() => { });
+        setTimeout(() => process.exit(0), 500);
     });
 }
 
