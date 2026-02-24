@@ -318,21 +318,58 @@ async function main() {
 
     console.log(colors.muted(`  ${icons.star} Hello! What can I do for you today?`));
 
+    const commandsList = [
+        'claude', 'gemini',
+        'wa connect', 'wa send', 'wa status', 'wa disconnect',
+        'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
+        'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
+        'status', 'help', 'clear', 'exit', 'quit', 'folder', 'cd',
+    ].sort();
+
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
         prompt: colors.primary('  minigeri ▸ '),
         completer: (line) => {
-            const commands = [
-                'claude', 'gemini',
-                'wa connect', 'wa send', 'wa status', 'wa disconnect',
-                'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
-                'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
-                'status', 'help', 'clear', 'exit', 'quit', 'folder', 'cd',
-            ];
-            const hits = commands.filter((c) => c.startsWith(line.trim()));
-            return [hits.length ? hits : commands, line];
+            const hits = commandsList.filter((c) => c.startsWith(line.trim()));
+            return [hits.length ? hits : commandsList, line];
         },
+    });
+
+    const originalRefresh = rl._refreshLine;
+    rl._refreshLine = function () {
+        originalRefresh.call(this);
+
+        const text = this.line || '';
+        const dist = text.length - this.cursor;
+        const moveRight = dist > 0 ? `\x1B[${dist}C` : '';
+
+        if (text.trim().length > 0 && !this._hideGhostText) {
+            const hits = commandsList.filter(c => c.startsWith(text.trim()));
+            if (hits.length > 0) {
+                const suggestionString = '   \x1b[90m[' + hits.join(' \x1b[37m·\x1b[90m ') + ']\x1b[0m';
+                this.output.write(`\x1B[s${moveRight}${suggestionString}\x1B[K\x1B[u`);
+            } else {
+                this.output.write(`\x1B[s${moveRight}\x1B[K\x1B[u`);
+            }
+        } else {
+            this.output.write(`\x1B[s${moveRight}\x1B[K\x1B[u`);
+        }
+    };
+
+    // NodeJS readline optimizes purely appended text by not redrawing the whole prompt.
+    // We explicitly tap into the input stream's keypress to ensure our suggestions 
+    // update eagerly for every added character. 
+    process.stdin.on('keypress', (str, key) => {
+        if (key && key.name === 'return') {
+            rl._hideGhostText = true;
+            rl._refreshLine();
+            rl._hideGhostText = false;
+            return;
+        }
+        setTimeout(() => {
+            rl._refreshLine();
+        }, 0);
     });
 
     rl.prompt();
