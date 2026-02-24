@@ -38,14 +38,14 @@ export async function handleSafeCommand(cmdStr) {
         if (!out) out = 'Success (no output)';
 
         if (out.length > 3000) {
-            out = out.substring(0, 3000) + '\\n\\n(output truncated)';
+            out = out.substring(0, 3000) + '\n\n(output truncated)';
         }
-        return `✅ *Output:*\\n\`\`\`\\n${out.trim()}\\n\`\`\``;
+        return `✅ *Output:*\n\`\`\`\n${out.trim()}\n\`\`\``;
     } catch (err) {
         let msg = err.message;
         if (err.stdout || err.stderr) {
-            msg += '\\n\\n' + err.stdout + err.stderr;
+            msg += '\n\n' + err.stdout + err.stderr;
         }
-        return `❌ Error executing command:\\n\`\`\`\\n${msg.trim()}\\n\`\`\``;
+        return `❌ Error executing command:\n\`\`\`\n${msg.trim()}\n\`\`\``;
     }
 }
