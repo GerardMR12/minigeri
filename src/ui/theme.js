@@ -152,4 +152,5 @@ export const icons = {
     key: '🔑',
     link: '🔗',
     warning: '⚠️',
+    octopus: '🐙',
 };

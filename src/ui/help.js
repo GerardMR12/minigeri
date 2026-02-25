@@ -36,6 +36,14 @@ export function showHelp() {
     console.log(`  ${colors.groq.bold('groq')} ${colors.muted('<prompt>')}                 ${colors.text('Chat with Groq (cloud, fast)')}`);
     console.log('');
 
+    // ── Octopus Mode ──
+    console.log(colors.accent.bold('  Octopus Mode'));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.accent.bold('octopus')} ${colors.muted('<agent>')}               ${colors.text('Enter interactive chat mode')}`);
+    console.log(colors.muted('  Agents: groq, ollama, claude, gemini'));
+    console.log(colors.muted(`  Use ${colors.accent('/exit')} to leave octopus mode`));
+    console.log('');
+
     // ── Claude ──
     console.log(colors.claude.bold('  Claude'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));

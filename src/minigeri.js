@@ -531,6 +531,73 @@ async function handleGroq(args, rl) {
     }
 }
 
+// ── Octopus Mode ───────────────────────────────────────────────────
+
+// Octopus mode state — when non-null, the shell is in octopus mode
+let octopusState = null; // { agent, label, colorFn, target }
+
+// Map user-facing command names to their agent resolution logic
+const OCTOPUS_AGENTS = {
+    groq: () => {
+        const { agent, agentConfig } = getGroqAgent();
+        return { agent, model: agentConfig.model, colorFn: colors.groq, label: 'Groq' };
+    },
+    ollama: () => {
+        const { agent, agentConfig } = getOllamaAgent();
+        return { agent, model: agentConfig.model, colorFn: colors.ollama, label: 'Ollama' };
+    },
+    claude: () => {
+        const config = loadConfig();
+        const isApi = config.claudeMode === 'api';
+        const agentName = isApi ? 'claude-api' : 'claude-code';
+        const agentConfig = getAgent(agentName);
+        const agent = createAgent(agentName, agentConfig);
+        return { agent, model: agentConfig.model || agentName, colorFn: colors.claude, label: 'Claude' };
+    },
+    gemini: () => {
+        const config = loadConfig();
+        const isApi = config.geminiMode === 'api';
+        const agentName = isApi ? 'gemini-api' : 'gemini-cli';
+        const agentConfig = getAgent(agentName);
+        const agent = createAgent(agentName, agentConfig);
+        return { agent, model: agentConfig.model || agentName, colorFn: colors.gemini, label: 'Gemini' };
+    },
+};
+
+async function handleOctopus(args, rl) {
+    const target = args[0]?.toLowerCase();
+
+    if (!target || !OCTOPUS_AGENTS[target]) {
+        const available = Object.keys(OCTOPUS_AGENTS).join(', ');
+        console.log(`\n  ${colors.warning('Usage:')} ${colors.accent('octopus <agent>')}`);
+        console.log(colors.muted(`  Available agents: ${available}`));
+        console.log(colors.muted('  Example: ') + colors.text('octopus groq\n'));
+        return;
+    }
+
+    // Resolve the agent
+    const { agent, model, colorFn, label } = OCTOPUS_AGENTS[target]();
+
+    // Check availability
+    const available = await agent.isAvailable();
+    if (!available) {
+        console.log(colors.error(`\n  ${icons.cross} ${label} is not available. Check your configuration.\n`));
+        return;
+    }
+
+    // Enter octopus mode — set state and change prompt
+    console.log('');
+    console.log(colorFn(`  ${icons.octopus} Entering Octopus Mode — ${label} (${model})`));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(colors.muted('  Everything you type is sent as a prompt.'));
+    console.log(colors.muted(`  Type ${colors.accent('/exit')} to return to minigeri.\n`));
+
+    octopusState = { agent, label, colorFn, target };
+
+    // Switch prompt to octopus style
+    rl.setPrompt(`  ${colors.primary(icons.octopus + ' octopus')} ${colors.primary('▸')} ${colorFn(target)} ${colorFn('▸')} `);
+}
+
 async function handleWhatsApp(args) {
     const subcommand = args[0]?.toLowerCase();
 
@@ -763,6 +830,7 @@ registerCommand('claude', (args) => handleClaude(args, null));
 registerCommand('gemini', (args) => handleGemini(args, null));
 registerCommand('ollama', (args) => handleOllama(args, null));
 registerCommand('groq', (args) => handleGroq(args, null));
+registerCommand('octopus', (args) => handleOctopus(args, null));
 registerCommand('wa', (args) => handleWhatsApp(args));
 registerCommand('slack', (args) => handleSlack(args));
 registerCommand('tg', (args) => handleTelegram(args));
@@ -811,6 +879,7 @@ async function main() {
         'ollama', 'ollama models', 'ollama use', 'ollama pull', 'ollama rm', 'ollama ps',
         'ollama clear', 'ollama history',
         'groq', 'groq models', 'groq use', 'groq history', 'groq clear',
+        'octopus groq', 'octopus ollama', 'octopus claude', 'octopus gemini',
         'wa connect', 'wa send', 'wa status', 'wa disconnect',
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
@@ -853,7 +922,7 @@ async function main() {
             suggestionOffset = 0;
         }
 
-        if (text.trim().length > 0 && !this._hideGhostText) {
+        if (text.trim().length > 0 && !this._hideGhostText && !octopusState) {
             const hits = inSelectionMode ? currentHits : commandsList.filter(c => c.startsWith(text.trim()));
             if (hits.length > 0) {
                 // In selection mode, ensure selected item is visible
@@ -947,7 +1016,7 @@ async function main() {
         }
 
         // ── Normal mode ──
-        if (key && key.name === 'down') {
+        if (key && key.name === 'down' && !octopusState) {
             const text = (rl.line || '').trim();
             const hits = commandsList.filter(c => c.startsWith(text));
             if (hits.length > 0 && text.length > 0) {
@@ -991,6 +1060,34 @@ async function main() {
         const input = line.trim();
 
         if (!input) {
+            isExecuting = false;
+            rl.prompt();
+            return;
+        }
+
+        // ── Octopus mode: intercept all input ──
+        if (octopusState) {
+            // /exit — leave octopus mode
+            if (input.toLowerCase() === '/exit') {
+                console.log(colors.muted(`\n  ${icons.check} Leaving Octopus Mode\n`));
+                octopusState = null;
+                rl.setPrompt(colors.primary('  minigeri ▸ '));
+                isExecuting = false;
+                rl.prompt();
+                return;
+            }
+
+            // Send everything else as a prompt to the active agent
+            const { agent, colorFn } = octopusState;
+            console.log('');
+
+            try {
+                await agent.send(input);
+                console.log('\n');
+            } catch (err) {
+                console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}\n`));
+            }
+            isExecuting = false;
             rl.prompt();
             return;
         }
@@ -1015,6 +1112,10 @@ async function main() {
 
                 case 'groq':
                     await handleGroq(args, rl);
+                    break;
+
+                case 'octopus':
+                    await handleOctopus(args, rl);
                     break;
 
                 // ── WhatsApp ──
