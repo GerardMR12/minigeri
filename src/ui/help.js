@@ -41,7 +41,6 @@ export function showHelp() {
     console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('[prompt]')}        ${colors.text('Chat with Ollama (keeps context)')}`);
     console.log(`                           ${colors.muted('No prompt → interactive mode')}`);
     console.log(`  ${colors.ollama.bold('ollama models')}           ${colors.text('List downloaded models')}`);
-    console.log(`  ${colors.ollama.bold('ollama model')} ${colors.muted('[name]')}    ${colors.text('Show model info (current or specific)')}`);
     console.log(`  ${colors.ollama.bold('ollama use')} ${colors.muted('<name>')}      ${colors.text('Switch the active model')}`);
     console.log(`  ${colors.ollama.bold('ollama pull')} ${colors.muted('<name>')}     ${colors.text('Download a model')}`);
     console.log(`  ${colors.ollama.bold('ollama rm')} ${colors.muted('<name>')}       ${colors.text('Remove a local model')}`);

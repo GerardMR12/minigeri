@@ -167,25 +167,6 @@ async function handleOllama(args, rl) {
             break;
         }
 
-        // Show info about the current or a specific model
-        case 'model':
-        case 'show':
-        case 'info': {
-            const modelName = args[1] || agentConfig.model;
-            console.log(`\n  ${colors.ollama.bold('Model Info')} ${colors.muted('—')} ${colors.ollama(modelName)}`);
-            console.log(colors.muted('  ─────────────────────────────────────────────'));
-            try {
-                const info = await agent.showModel(modelName);
-                const lines = info.split('\n');
-                for (const line of lines) {
-                    console.log(`  ${colors.text(line)}`);
-                }
-            } catch (err) {
-                console.log(colors.error(`  ${icons.cross} ${err.message}`));
-            }
-            console.log('');
-            break;
-        }
 
         // Switch the active model
         case 'use':
@@ -615,7 +596,7 @@ async function main() {
 
     const commandsList = [
         'claude', 'gemini',
-        'ollama', 'ollama models', 'ollama model', 'ollama use', 'ollama pull', 'ollama rm', 'ollama ps',
+        'ollama', 'ollama models', 'ollama use', 'ollama pull', 'ollama rm', 'ollama ps',
         'ollama clear', 'ollama history',
         'wa connect', 'wa send', 'wa status', 'wa disconnect',
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
@@ -634,6 +615,16 @@ async function main() {
         },
     });
 
+    const MAX_VISIBLE = 4;
+    let suggestionOffset = 0;
+    let lastInputText = '';
+
+    // ── Selection mode state ──
+    let inSelectionMode = false;
+    let selectedIndex = 0;
+    let savedInput = '';
+    let currentHits = [];
+
     const originalRefresh = rl._refreshLine;
     rl._refreshLine = function () {
         originalRefresh.call(this);
@@ -642,10 +633,49 @@ async function main() {
         const dist = text.length - this.cursor;
         const moveRight = dist > 0 ? `\x1B[${dist}C` : '';
 
+        // Reset scroll position when the typed text changes (only in normal mode)
+        if (!inSelectionMode && text.trim() !== lastInputText) {
+            lastInputText = text.trim();
+            suggestionOffset = 0;
+        }
+
         if (text.trim().length > 0 && !this._hideGhostText) {
-            const hits = commandsList.filter(c => c.startsWith(text.trim()));
+            const hits = inSelectionMode ? currentHits : commandsList.filter(c => c.startsWith(text.trim()));
             if (hits.length > 0) {
-                const suggestionString = '   \x1b[90m[' + hits.join(' \x1b[37m·\x1b[90m ') + ']\x1b[0m';
+                // In selection mode, ensure selected item is visible
+                if (inSelectionMode) {
+                    if (selectedIndex < suggestionOffset) {
+                        suggestionOffset = selectedIndex;
+                    }
+                    if (selectedIndex >= suggestionOffset + MAX_VISIBLE) {
+                        suggestionOffset = selectedIndex - MAX_VISIBLE + 1;
+                    }
+                } else {
+                    if (suggestionOffset > hits.length - MAX_VISIBLE) {
+                        suggestionOffset = Math.max(0, hits.length - MAX_VISIBLE);
+                    }
+                }
+
+                const visible = hits.slice(suggestionOffset, suggestionOffset + MAX_VISIBLE);
+                const hasLeft = inSelectionMode && suggestionOffset > 0;
+                const hasRight = inSelectionMode && suggestionOffset + MAX_VISIBLE < hits.length;
+
+                let parts = '\x1b[90m';
+                if (hasLeft) parts += '\x1b[37m◀ \x1b[90m';
+
+                parts += visible.map((h, i) => {
+                    const globalIdx = suggestionOffset + i;
+                    if (inSelectionMode && globalIdx === selectedIndex) {
+                        return `\x1b[1;97m${h}\x1b[0;90m`;  // Bold bright white for selected
+                    }
+                    return h;
+                }).join(' \x1b[37m·\x1b[90m ');
+
+                if (hasRight) parts += ' \x1b[37m▶\x1b[90m';
+
+                const bracket = inSelectionMode ? '\x1b[33m' : '\x1b[90m';
+                const hint = inSelectionMode ? '\x1b[33m↑ ' : '\x1b[90m↓ ';
+                const suggestionString = `   ${hint}${bracket}[${parts}${bracket}]\x1b[0m`;
                 this.output.write(`\x1B[s${moveRight}${suggestionString}\x1B[K\x1B[u`);
             } else {
                 this.output.write(`\x1B[s${moveRight}\x1B[K\x1B[u`);
@@ -655,19 +685,85 @@ async function main() {
         }
     };
 
-    // NodeJS readline optimizes purely appended text by not redrawing the whole prompt.
-    // We explicitly tap into the input stream's keypress to ensure our suggestions 
-    // update eagerly for every added character. 
-    process.stdin.on('keypress', (str, key) => {
+    // ── Override _ttyWrite to intercept keys in selection mode ──
+    const originalTtyWrite = rl._ttyWrite;
+    rl._ttyWrite = function (s, key) {
+        if (inSelectionMode) {
+            if (key && key.name === 'right') {
+                // Navigate selection right
+                if (selectedIndex < currentHits.length - 1) {
+                    selectedIndex++;
+                }
+                rl._refreshLine();
+                return;
+            }
+
+            if (key && key.name === 'left') {
+                // Navigate selection left
+                if (selectedIndex > 0) {
+                    selectedIndex--;
+                }
+                rl._refreshLine();
+                return;
+            }
+
+            if (key && key.name === 'up') {
+                // Exit selection mode, restore saved input
+                inSelectionMode = false;
+                rl.line = savedInput;
+                rl.cursor = savedInput.length;
+                rl._refreshLine();
+                return;
+            }
+
+            if (key && key.name === 'return') {
+                // Write selected command into input (don't submit)
+                inSelectionMode = false;
+                const selected = currentHits[selectedIndex] || '';
+                rl.line = selected;
+                rl.cursor = selected.length;
+                rl._refreshLine();
+                return;
+            }
+
+            // Any other key: exit selection mode and pass through normally
+            inSelectionMode = false;
+            originalTtyWrite.call(this, s, key);
+            return;
+        }
+
+        // ── Normal mode ──
+        if (key && key.name === 'down') {
+            const text = (rl.line || '').trim();
+            const hits = commandsList.filter(c => c.startsWith(text));
+            if (hits.length > 0 && text.length > 0) {
+                // Enter selection mode
+                inSelectionMode = true;
+                savedInput = rl.line;
+                currentHits = hits;
+                selectedIndex = 0;
+                suggestionOffset = 0;
+                rl._refreshLine();
+                return;
+            }
+        }
+
         if (key && key.name === 'return') {
             rl._hideGhostText = true;
             rl._refreshLine();
             rl._hideGhostText = false;
-            return;
         }
-        setTimeout(() => {
-            rl._refreshLine();
-        }, 0);
+
+        originalTtyWrite.call(this, s, key);
+    };
+
+    // Eagerly refresh suggestions on every keypress for smooth updates
+    process.stdin.on('keypress', () => {
+        if (!inSelectionMode) {
+            setTimeout(() => {
+                rl._refreshLine();
+            }, 0);
+        }
     });
 
     rl.prompt();
