@@ -25,6 +25,7 @@ import {
     tgStatus, tgDisconnect,
 } from './services/telegram.js';
 import { handleNgrok, stopNgrok, isNgrokRunning } from './services/ngrok.js';
+import { registerCommand } from './tools/command-runner.js';
 
 // Load env
 const __filename = fileURLToPath(import.meta.url);
@@ -754,6 +755,30 @@ function handleShellCommand(cmd) {
         });
     });
 }
+// ─── Register commands for AI agent tool use ─────────────────────
+// These registrations let agents execute minigeri commands via run_command.
+// Handlers that need `rl` receive a null (they only use rl for interactive mode).
+
+registerCommand('claude', (args) => handleClaude(args, null));
+registerCommand('gemini', (args) => handleGemini(args, null));
+registerCommand('ollama', (args) => handleOllama(args, null));
+registerCommand('groq', (args) => handleGroq(args, null));
+registerCommand('wa', (args) => handleWhatsApp(args));
+registerCommand('slack', (args) => handleSlack(args));
+registerCommand('tg', (args) => handleTelegram(args));
+registerCommand('ngrok', (args) => handleNgrok(args));
+registerCommand('folder', () => handleFolder());
+registerCommand('status', () => handleStatus());
+registerCommand('theme', (args) => handleTheme(args, null));
+registerCommand('cd', (args) => {
+    const dir = args.join(' ') || process.env.HOME || '/';
+    try {
+        process.chdir(dir);
+        return `Changed directory to ${process.cwd()}`;
+    } catch (err) {
+        return `Error: ${err.message}`;
+    }
+});
 
 // ─── Main Interactive Shell ────────────────────────────────────────
 

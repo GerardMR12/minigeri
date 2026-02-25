@@ -38,6 +38,20 @@ export const TOOL_CATALOG = [
             required: ['path'],
         },
     },
+    {
+        name: 'run_command',
+        description:
+            'Execute a minigeri command and get its output. Use this to interact with services, check status, send messages, query other AI agents, etc. See the commands instruction file for the full list of available commands.',
+        parameters: {
+            properties: {
+                command: {
+                    type: 'string',
+                    description: 'The full command string to execute, e.g. "folder", "status", "slack channels", "tg send 123 Hello"',
+                },
+            },
+            required: ['command'],
+        },
+    },
 ];
 
 // ── Format converters ────────────────────────────────────────────

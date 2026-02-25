@@ -55,7 +55,7 @@ export class GeminiApiAgent extends BaseAgent {
                 for (const fc of result.functionCalls) {
                     if (!silent) this.logToolCall(fc.name, fc.args || {});
 
-                    const toolResult = executeTool(fc.name, fc.args || {});
+                    const toolResult = await executeTool(fc.name, fc.args || {});
                     responseParts.push({
                         functionResponse: {
                             name: fc.name,

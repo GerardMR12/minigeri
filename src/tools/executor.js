@@ -6,6 +6,7 @@
  */
 
 import { listProjectFiles, readProjectFile } from '../utils/project-files.js';
+import { runCommand } from './command-runner.js';
 
 /**
  * Execute a tool call by name and return the result string.
@@ -14,9 +15,9 @@ import { listProjectFiles, readProjectFile } from '../utils/project-files.js';
  * @param {object} args - Parsed arguments from the model
  * @param {object} [opts] - Options
  * @param {string} [opts.cwd] - Working directory (defaults to process.cwd())
- * @returns {string} The tool's text result
+ * @returns {Promise<string>} The tool's text result
  */
-export function executeTool(name, args = {}, opts = {}) {
+export async function executeTool(name, args = {}, opts = {}) {
     const cwd = opts.cwd || process.cwd();
 
     switch (name) {
@@ -31,7 +32,14 @@ export function executeTool(name, args = {}, opts = {}) {
             return readProjectFile(cwd, path);
         }
 
+        case 'run_command': {
+            const command = args.command;
+            if (!command) return '[Error: missing "command" argument]';
+            return await runCommand(command);
+        }
+
         default:
             return `[Error: unknown tool "${name}"]`;
     }
 }
+

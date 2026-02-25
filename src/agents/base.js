@@ -63,8 +63,22 @@ export class BaseAgent {
      * @param {object} args
      */
     logToolCall(toolName, args) {
-        const label = args.path || toolName || 'files';
-        process.stdout.write(`  📂 ${label}...\n`);
+        let label;
+        switch (toolName) {
+            case 'list_files':
+                label = '🗂️  Listing files...';
+                break;
+            case 'read_file':
+                label = `📄 Reading ${args.path || 'file'}...`;
+                break;
+            case 'run_command':
+                label = `⚙️  Running: ${args.command || 'command'}`;
+                break;
+            default:
+                label = `🔧 ${toolName}...`;
+                break;
+        }
+        process.stdout.write(`  ${label}\n`);
     }
 
     /**

@@ -77,7 +77,7 @@ export class GroqAgent extends BaseAgent {
 
                     if (!silent) this.logToolCall(tc.function?.name, args);
 
-                    const toolResult = executeTool(tc.function.name, args);
+                    const toolResult = await executeTool(tc.function.name, args);
                     this.messages.push({
                         role: 'tool',
                         tool_call_id: tc.id,

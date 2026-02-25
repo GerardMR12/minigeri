@@ -51,7 +51,7 @@ export class ClaudeApiAgent extends BaseAgent {
                 for (const tu of result.toolUse) {
                     if (!silent) this.logToolCall(tu.name, tu.input || {});
 
-                    const toolResult = executeTool(tu.name, tu.input || {});
+                    const toolResult = await executeTool(tu.name, tu.input || {});
                     toolResults.push({
                         type: 'tool_result',
                         tool_use_id: tu.id,
