@@ -5,6 +5,7 @@ import { getAgent } from '../config.js';
 import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand } from '../utils/cmd.js';
 import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
+import { handleNgrok } from './ngrok.js';
 
 let bot = null;
 let isConnected = false;
@@ -248,6 +249,10 @@ async function handleIncomingMessage(msg, botInstance) {
         } else if (lowText === '/folder') {
             botInstance.sendMessage(chatId, `📁 *Current Directory:*\n\`${process.cwd()}\``, { parse_mode: 'Markdown' });
             console.log(colors.telegram(`  ${icons.check} Sent folder path to Telegram user`));
+        } else if (lowText === '/ngrok') {
+            console.log(colors.telegram(`  [Starting ngrok via Telegram: 8080]`));
+            const response = await handleNgrok(['8080'], true);
+            botInstance.sendMessage(chatId, response, { parse_mode: 'Markdown' });
         } else if (textStr.startsWith('/cmd ') || textStr === '/cmd') {
             const cmdStr = textStr.substring(5).trim();
             if (!cmdStr) {
@@ -263,14 +268,20 @@ async function handleIncomingMessage(msg, botInstance) {
         } else if (textStr.startsWith('/claude ') || textStr === '/claude') {
             agentName = 'claude-code';
             prompt = textStr.substring(7).trim();
+        } else if (textStr.startsWith('/ollama ') || textStr === '/ollama') {
+            agentName = 'ollama';
+            prompt = textStr.substring(7).trim();
         }
 
         if (agentName) {
             if (!prompt) {
-                botInstance.sendMessage(chatId, `Please provide a prompt. Example: /${agentName === 'gemini-cli' ? 'gemini' : 'claude'} Hello!`);
+                botInstance.sendMessage(chatId, `Please provide a prompt. Example: /${agentName === 'gemini-cli' ? 'gemini' : (agentName === 'ollama' ? 'ollama' : 'claude')} Hello!`);
             } else {
                 console.log(colors.muted(`\n  [Routing Telegram message to ${agentName}...]`));
-                const botColor = agentName === 'gemini-cli' ? colors.gemini : colors.claude;
+                let botColor;
+                if (agentName === 'gemini-cli') botColor = colors.gemini;
+                else if (agentName === 'claude-code') botColor = colors.claude;
+                else botColor = colors.ollama;
 
                 try {
                     // Quick reply so the user knows we are processing

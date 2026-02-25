@@ -1,9 +1,11 @@
 import { ClaudeCodeAgent } from './claude-code.js';
 import { GeminiCliAgent } from './gemini-cli.js';
+import { OllamaAgent } from './ollama.js';
 
 const AGENT_REGISTRY = {
     'claude-code': ClaudeCodeAgent,
     'gemini-cli': GeminiCliAgent,
+    'ollama': OllamaAgent,
 };
 
 /**

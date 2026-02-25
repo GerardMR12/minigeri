@@ -6,7 +6,9 @@ export function getHelpText() {
 *Available commands:*
 • \`/gemini [prompt]\` — Talk to Gemini CLI
 • \`/claude [prompt]\` — Talk to Claude Code
+• \`/ollama [prompt]\` — Talk to Ollama (local)
 • \`/folder\` — Show current working directory
+• \`/ngrok\` — Start ngrok tunnel on port 8080
 • \`/cmd [cmd]\` — Run safe remote commands (cd, mkdir, ls)
 • \`help\` — Show this help message
 
@@ -31,6 +33,19 @@ export function showHelp() {
     console.log(`                          ${colors.muted('No prompt → interactive mode')}`);
     console.log(`  ${colors.gemini.bold('gemini')} ${colors.muted('[prompt]')}       ${colors.text('Talk to Gemini CLI')}`);
     console.log(`                          ${colors.muted('No prompt → interactive mode')}`);
+    console.log('');
+
+    // ── Ollama ──
+    console.log(colors.ollama.bold('  Ollama'));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('[prompt]')}        ${colors.text('Talk to Ollama (local)')}`);
+    console.log(`                           ${colors.muted('No prompt → interactive mode')}`);
+    console.log(`  ${colors.ollama.bold('ollama models')}           ${colors.text('List downloaded models')}`);
+    console.log(`  ${colors.ollama.bold('ollama model')} ${colors.muted('[name]')}    ${colors.text('Show model info (current or specific)')}`);
+    console.log(`  ${colors.ollama.bold('ollama use')} ${colors.muted('<name>')}      ${colors.text('Switch the active model')}`);
+    console.log(`  ${colors.ollama.bold('ollama pull')} ${colors.muted('<name>')}     ${colors.text('Download a model')}`);
+    console.log(`  ${colors.ollama.bold('ollama rm')} ${colors.muted('<name>')}       ${colors.text('Remove a local model')}`);
+    console.log(`  ${colors.ollama.bold('ollama ps')}               ${colors.text('Show running models')}`);
     console.log('');
 
     // ── WhatsApp ──
@@ -61,6 +76,14 @@ export function showHelp() {
     console.log(`  ${colors.telegram.bold('tg chats')}              ${colors.text('List recent chats')}`);
     console.log(`  ${colors.telegram.bold('tg status')}             ${colors.text('Check Telegram bot status')}`);
     console.log(`  ${colors.telegram.bold('tg disconnect')}         ${colors.text('Disconnect Telegram bot')}`);
+    console.log('');
+
+    // ── Ngrok ──
+    console.log(colors.secondary.bold('  Ngrok'));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.secondary.bold('ngrok')} ${colors.muted('[port]')}             ${colors.text('Start tunnel (default: 8080)')}`);
+    console.log(`  ${colors.secondary.bold('ngrok status')}               ${colors.text('Show tunnel info')}`);
+    console.log(`  ${colors.secondary.bold('ngrok stop')}                 ${colors.text('Stop the tunnel')}`);
     console.log('');
 
     // ── System ──

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import readline from 'readline';
+import http from 'http';
 import { spawn } from 'child_process';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
@@ -23,6 +24,7 @@ import {
     tgConnect, tgAutoConnect, tgSend, tgChats,
     tgStatus, tgDisconnect,
 } from './services/telegram.js';
+import { handleNgrok, stopNgrok, isNgrokRunning } from './services/ngrok.js';
 
 // Load env
 const __filename = fileURLToPath(import.meta.url);
@@ -113,6 +115,198 @@ async function handleGemini(args, rl) {
         console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
     }
     console.log('');
+}
+
+async function handleOllama(args, rl) {
+    const subcommand = args[0]?.toLowerCase();
+    const agentConfig = getAgent('ollama');
+    const agent = createAgent('ollama', agentConfig);
+
+    const available = await agent.isAvailable();
+    if (!available) {
+        console.log(colors.error(`  ${icons.cross} Ollama is not installed or not in PATH`));
+        return;
+    }
+
+    // ── Subcommands ──
+    switch (subcommand) {
+        // List all downloaded models
+        case 'models':
+        case 'list':
+        case 'ls': {
+            console.log(`\n  ${colors.ollama.bold('Local Models')}`);
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            try {
+                const { models } = await agent.listModels();
+                if (models.length === 0) {
+                    console.log(colors.muted('  No models found. Use ') + colors.ollama('ollama pull <model>') + colors.muted(' to download one.'));
+                } else {
+                    for (const m of models) {
+                        const isCurrent = m.name.replace(/:latest$/, '') === agentConfig.model.replace(/:latest$/, '');
+                        const marker = isCurrent ? colors.success(icons.check) : ' ';
+                        console.log(`  ${marker} ${colors.ollama.bold(m.name.padEnd(28))} ${colors.muted(m.size.padEnd(10))} ${colors.muted(m.modified)}`);
+                    }
+                }
+            } catch (err) {
+                console.log(colors.error(`  ${icons.cross} ${err.message}`));
+            }
+            console.log('');
+            break;
+        }
+
+        // Show info about the current or a specific model
+        case 'model':
+        case 'show':
+        case 'info': {
+            const modelName = args[1] || agentConfig.model;
+            console.log(`\n  ${colors.ollama.bold('Model Info')} ${colors.muted('—')} ${colors.ollama(modelName)}`);
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            try {
+                const info = await agent.showModel(modelName);
+                // Indent each line for consistent formatting
+                const lines = info.split('\n');
+                for (const line of lines) {
+                    console.log(`  ${colors.text(line)}`);
+                }
+            } catch (err) {
+                console.log(colors.error(`  ${icons.cross} ${err.message}`));
+            }
+            console.log('');
+            break;
+        }
+
+        // Switch the active model
+        case 'use':
+        case 'set': {
+            const modelName = args[1];
+            if (!modelName) {
+                console.log(colors.warning(`\n  Usage: ${colors.ollama('ollama use <model_name>')}`));
+                console.log(colors.muted('  Example: ollama use mistral'));
+                console.log(colors.muted('  Tip: Use ') + colors.ollama('ollama models') + colors.muted(' to see available models\n'));
+                return;
+            }
+            // Verify the model exists locally
+            try {
+                const { models } = await agent.listModels();
+                const normalised = modelName.replace(/:latest$/, '');
+                const found = models.some(m => m.name.replace(/:latest$/, '') === normalised);
+                if (!found) {
+                    console.log(colors.warning(`\n  ${icons.cross} Model "${modelName}" not found locally.`));
+                    console.log(colors.muted('  Available models:'));
+                    for (const m of models) {
+                        console.log(colors.muted(`    • ${m.name}`));
+                    }
+                    console.log(colors.muted('  Use ') + colors.ollama(`ollama pull ${modelName}`) + colors.muted(' to download it first.\n'));
+                    return;
+                }
+            } catch {
+                // If listing fails, let the user switch anyway
+            }
+            const config = loadConfig();
+            if (!config.agents) config.agents = {};
+            if (!config.agents.ollama) config.agents.ollama = {};
+            config.agents.ollama.model = modelName;
+            saveConfig(config);
+            console.log(`\n  ${colors.success(icons.check)} Active model set to ${colors.ollama.bold(modelName)}\n`);
+            break;
+        }
+
+        // Pull (download) a model
+        case 'pull':
+        case 'download': {
+            const modelName = args[1];
+            if (!modelName) {
+                console.log(colors.warning(`\n  Usage: ${colors.ollama('ollama pull <model_name>')}`));
+                console.log(colors.muted('  Example: ollama pull mistral\n'));
+                return;
+            }
+            console.log(colors.ollama(`\n  ${icons.llama} Pulling model ${colors.ollama.bold(modelName)}...`));
+            console.log(colors.muted('  ─────────────────────────────────────────────\n'));
+            rl.pause();
+            try {
+                await agent.pullModel(modelName);
+                console.log(`\n  ${colors.success(icons.check)} Model ${colors.ollama.bold(modelName)} downloaded successfully\n`);
+            } catch (err) {
+                console.log(colors.error(`\n  ${icons.cross} ${err.message}\n`));
+            }
+            rl.resume();
+            rl.prompt();
+            return;  // early return because rl was paused
+        }
+
+        // Remove a model
+        case 'rm':
+        case 'remove':
+        case 'delete': {
+            const modelName = args[1];
+            if (!modelName) {
+                console.log(colors.warning(`\n  Usage: ${colors.ollama('ollama rm <model_name>')}`));
+                console.log(colors.muted('  Example: ollama rm mistral\n'));
+                return;
+            }
+            try {
+                await agent.removeModel(modelName);
+                console.log(`\n  ${colors.success(icons.check)} Model ${colors.ollama.bold(modelName)} removed\n`);
+            } catch (err) {
+                console.log(colors.error(`\n  ${icons.cross} ${err.message}\n`));
+            }
+            break;
+        }
+
+        // List currently running models
+        case 'ps':
+        case 'running': {
+            console.log(`\n  ${colors.ollama.bold('Running Models')}`);
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            try {
+                const output = await agent.listRunning();
+                const lines = output.split('\n');
+                if (lines.length <= 1) {
+                    console.log(colors.muted('  No models currently running'));
+                } else {
+                    for (const line of lines) {
+                        console.log(`  ${colors.text(line)}`);
+                    }
+                }
+            } catch (err) {
+                console.log(colors.error(`  ${icons.cross} ${err.message}`));
+            }
+            console.log('');
+            break;
+        }
+
+        // No subcommand → interactive mode
+        case undefined: {
+            console.log(colors.ollama(`\n  ${icons.llama} Launching Ollama interactive mode (${agentConfig.model})...`));
+            console.log(colors.muted('  (You\'ll return here when you exit Ollama)\n'));
+
+            rl.pause();
+            try {
+                await agent.interactive();
+            } catch (err) {
+                console.log(colors.error(`  ${icons.cross} Error: ${err.message}`));
+            }
+            console.log(colors.muted(`\n  ${icons.check} Back to minigeri\n`));
+            rl.resume();
+            rl.prompt();
+            return;  // early return because rl was paused
+        }
+
+        // Anything else → treat as a prompt
+        default: {
+            const prompt = args.join(' ').trim();
+            console.log(colors.ollama(`\n  ${icons.llama} Asking Ollama (${agentConfig.model})...`));
+            console.log(colors.muted('  ─────────────────────────────────────────────\n'));
+            try {
+                await agent.send(prompt);
+                console.log(colors.muted('\n  ─────────────────────────────────────────────'));
+            } catch (err) {
+                console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
+            }
+            console.log('');
+            break;
+        }
+    }
 }
 
 async function handleWhatsApp(args) {
@@ -280,6 +474,8 @@ async function handleTheme(args, rl) {
     }
 }
 
+// ─── Status & Shell ───────────────────────────────────────────────
+
 async function handleStatus() {
     const config = loadConfig();
     const agentNames = listAgentNames();
@@ -297,7 +493,13 @@ async function handleStatus() {
         const status = available
             ? colors.success(`${icons.bullet} Available`)
             : colors.error(`${icons.circle} Not found`);
-        const color = name === 'claude-code' ? colors.claude : colors.gemini;
+
+        let color;
+        if (name === 'claude-code') color = colors.claude;
+        else if (name === 'gemini-cli') color = colors.gemini;
+        else if (name === 'ollama') color = colors.ollama;
+        else color = colors.primary;
+
         console.log(`  ${status}  ${color.bold(name)}`);
     }
 
@@ -358,9 +560,11 @@ async function main() {
 
     const commandsList = [
         'claude', 'gemini',
+        'ollama', 'ollama models', 'ollama model', 'ollama use', 'ollama pull', 'ollama rm', 'ollama ps',
         'wa connect', 'wa send', 'wa status', 'wa disconnect',
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
+        'ngrok', 'ngrok stop', 'ngrok status',
         'status', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list',
     ].sort();
 
@@ -437,6 +641,10 @@ async function main() {
                     await handleGemini(args, rl);
                     break;
 
+                case 'ollama':
+                    await handleOllama(args, rl);
+                    break;
+
                 // ── WhatsApp ──
                 case 'wa':
                 case 'whatsapp':
@@ -468,6 +676,10 @@ async function main() {
 
                 case 'theme':
                     await handleTheme(args, rl);
+                    break;
+
+                case 'ngrok':
+                    await handleNgrok(args);
                     break;
 
                 case 'folder':
@@ -514,21 +726,33 @@ async function main() {
     });
 
     rl.on('close', () => {
+        stopNgrok();
         console.log(colors.muted(`\n  ${icons.star} Goodbye!\n`));
         process.exit(0);
     });
 
     // Graceful shutdown
-    process.on('SIGINT', () => {
-        console.log(colors.muted(`\n  ${icons.star} Goodbye!\n`));
+    const cleanup = () => {
+        stopNgrok();
         slackDisconnect();
         tgDisconnect().catch(() => { });
         waDisconnect().catch(() => { });
+    };
+
+    process.on('SIGINT', () => {
+        console.log(colors.muted(`\n  ${icons.star} Goodbye!\n`));
+        cleanup();
+        setTimeout(() => process.exit(0), 500);
+    });
+
+    process.on('SIGTERM', () => {
+        cleanup();
         setTimeout(() => process.exit(0), 500);
     });
 }
 
 main().catch((err) => {
+    stopNgrok();
     console.error(colors.error(`Fatal error: ${err.message}`));
     process.exit(1);
 });

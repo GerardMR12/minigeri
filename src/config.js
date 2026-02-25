@@ -22,6 +22,12 @@ const DEFAULT_CONFIG = {
             command: process.env.GEMINI_CLI_PATH || 'gemini',
             description: 'Gemini CLI — Google\'s AI assistant',
         },
+        'ollama': {
+            type: 'cli',
+            command: process.env.OLLAMA_PATH || 'ollama',
+            model: process.env.OLLAMA_MODEL || 'llama3',
+            description: 'Ollama — Local LLMs',
+        },
     },
     history: {
         maxEntries: 100,
@@ -41,7 +47,17 @@ export function loadConfig() {
     if (existsSync(CONFIG_FILE)) {
         try {
             const raw = readFileSync(CONFIG_FILE, 'utf-8');
-            return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
+            const saved = JSON.parse(raw);
+
+            // Deep-merge agents so defaults are always preserved
+            const mergedAgents = { ...DEFAULT_CONFIG.agents };
+            if (saved.agents) {
+                for (const [name, overrides] of Object.entries(saved.agents)) {
+                    mergedAgents[name] = { ...(mergedAgents[name] || {}), ...overrides };
+                }
+            }
+
+            return { ...DEFAULT_CONFIG, ...saved, agents: mergedAgents };
         } catch {
             return { ...DEFAULT_CONFIG };
         }

@@ -16,6 +16,7 @@ export const palettes = {
         whatsapp: '#25D366',   // WhatsApp green
         claude: '#D97706',   // Claude amber
         gemini: '#4285F4',   // Gemini blue
+        ollama: '#525252',   // Ollama dark gray
         slack: '#4A154B',   // Slack aubergine
         telegram: '#0088CC',   // Telegram blue
     },
@@ -33,6 +34,7 @@ export const palettes = {
         whatsapp: '#25D366',
         claude: '#D97706',
         gemini: '#4285F4',
+        ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
     },
@@ -50,6 +52,7 @@ export const palettes = {
         whatsapp: '#25D366',
         claude: '#D97706',
         gemini: '#4285F4',
+        ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
     },
@@ -67,6 +70,7 @@ export const palettes = {
         whatsapp: '#25D366',
         claude: '#D97706',
         gemini: '#4285F4',
+        ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
     },
@@ -84,6 +88,7 @@ export const palettes = {
         whatsapp: '#25D366',
         claude: '#D97706',
         gemini: '#4285F4',
+        ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
     }
@@ -135,6 +140,7 @@ export const icons = {
     gear: '⚙',
     chat: '💬',
     robot: '🤖',
+    llama: '🦙',
     phone: '📱',
     send: '📤',
     rocket: '🚀',
