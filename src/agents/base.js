@@ -8,6 +8,7 @@
  *   • getHistoryStats()     — returns turn/message counts
  */
 import { loadAllInstructions } from '../utils/instructions.js';
+import { colors } from '../ui/theme.js';
 
 export class BaseAgent {
     constructor(name, config = {}) {
@@ -78,7 +79,7 @@ export class BaseAgent {
                 label = `🔧 ${toolName}...`;
                 break;
         }
-        process.stdout.write(`  ${label}\n`);
+        process.stdout.write(`  ${colors.muted(label)}\n`);
     }
 
     /**
