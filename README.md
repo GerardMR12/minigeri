@@ -2,8 +2,6 @@
 
 Your AI command center. A unified terminal interface that lets you talk to AI agents (Claude Code, Gemini CLI), send WhatsApp messages, and interact with Slack — all from one place.
 
----
-
 ## Installation
 
 ### 1. Quick Install (Bash/Zsh)
@@ -26,12 +24,6 @@ npm link
 # 3. Launch!
 minigeri
 ```
-
----
-
-## Quick Start
-
----
 
 ## Commands Reference
 
@@ -84,8 +76,6 @@ minigeri
 | `!<command>` | Run a shell command (e.g., `!git status`) |
 | `exit` | Quit minigeri |
 
----
-
 ## Setup Guide
 
 ### 1. AI Agents Setup
@@ -112,8 +102,6 @@ claude
 
 **No API key needed** — Claude Code handles its own authentication.
 
----
-
 #### Gemini CLI
 
 Gemini CLI is Google's AI assistant for the terminal.
@@ -121,24 +109,20 @@ Gemini CLI is Google's AI assistant for the terminal.
 **Install:**
 ```bash
 # Install Gemini CLI globally
-npm install -g @anthropic-ai/claude-code  # placeholder — use Google's install method
-# Or, if using the Google Cloud SDK:
-# gcloud components install gemini-cli
+npm install -g @google/gemini-cli
 
 # Verify installation
 gemini --version
 
-# Authenticate (uses Google Cloud credentials)
-gcloud auth login
+# Authenticate (opens browser)
+gemini
 ```
 
 **What it does in minigeri:**
 - `gemini` → Opens Gemini CLI's interactive mode. You'll return to minigeri when you exit.
 - `gemini <prompt>` → Sends a single prompt and shows the response.
 
-**No API key needed in `.env`** — Gemini CLI uses your Google Cloud auth.
-
----
+**No API key needed in `.env`** — Gemini CLI uses your Google account auth.
 
 ### 2. WhatsApp Setup
 
@@ -176,8 +160,6 @@ minigeri ▸ wa send 34612345678 Hello from minigeri!
 - WhatsApp Web only allows one linked session besides your phone. If you link a browser, your minigeri session will disconnect.
 - The first connection requires scanning the QR code. Subsequent launches will auto-reconnect.
 - If you get disconnected, just run `wa connect` again.
-
----
 
 ### 3. Slack Setup
 
@@ -256,8 +238,6 @@ minigeri ▸ slack disconnect
 - You can use either channel names (`general`) or channel IDs (`C1234567890`).
 - The bot can only send messages to channels it has been invited to.
 
----
-
 ### 4. Telegram Setup
 
 minigeri uses the official Telegram Bot API via `node-telegram-bot-api`. It polls for messages and displays incoming messages live in your terminal.
@@ -320,9 +300,6 @@ minigeri ▸ tg disconnect
    > ⚠️ **Warning:** The AI agents are run with auto-approval flags enabled (`-y` for Gemini, `--dangerously-skip-permissions` for Claude) so that they can edit files without getting stuck on confirmation prompts. **Only add trusted user IDs to `TELEGRAM_ALLOWED_USERS`.**
 - You can send Markdown formatting in your Telegram messages! (e.g., `tg send 1234567 **bold text**`).
 
-
----
-
 ## Environment Variables
 
 | Variable | Required | Description |
@@ -338,8 +315,6 @@ minigeri ▸ tg disconnect
 
 WhatsApp doesn't need any environment variables — it authenticates via QR code.
 
----
-
 ## Roadmap
 
 - [x] Interactive shell (`minigeri` command)
@@ -353,8 +328,6 @@ WhatsApp doesn't need any environment variables — it authenticates via QR code
 - [ ] Conversation history persistence
 - [ ] Multi-agent routing (different message types → different agents)
 - [ ] Web dashboard for monitoring
-
----
 
 ## Troubleshooting
 
@@ -372,10 +345,8 @@ WhatsApp doesn't need any environment variables — it authenticates via QR code
 - Or set `CLAUDE_CODE_PATH=/full/path/to/claude` in `.env`
 
 ### Gemini CLI "not found"
-- Install via Google's instructions for Gemini CLI
+- Install with: `npm install -g @google/gemini-cli`
 - Or set `GEMINI_CLI_PATH=/full/path/to/gemini` in `.env`
-
----
 
 ## License
 
