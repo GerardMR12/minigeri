@@ -29,75 +29,75 @@ export function showHelp() {
     // ── AI Agents ──
     console.log(colors.primary.bold('  AI Agents'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.claude.bold('claude')} ${colors.muted('[prompt]')}       ${colors.text('Talk to Claude Code')}`);
-    console.log(`                          ${colors.muted('No prompt → interactive mode')}`);
-    console.log(`  ${colors.gemini.bold('gemini')} ${colors.muted('[prompt]')}       ${colors.text('Talk to Gemini CLI')}`);
-    console.log(`                          ${colors.muted('No prompt → interactive mode')}`);
+    console.log(`  ${colors.claude.bold('claude')} ${colors.muted('[prompt]')}               ${colors.text('Talk to Claude Code')}`);
+    console.log(`                                  ${colors.muted('No prompt → interactive mode')}`);
+    console.log(`  ${colors.gemini.bold('gemini')} ${colors.muted('[prompt]')}               ${colors.text('Talk to Gemini CLI')}`);
+    console.log(`                                  ${colors.muted('No prompt → interactive mode')}`);
+    console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('[prompt]')}               ${colors.text('Chat with Ollama (keeps context)')}`);
+    console.log(`                                  ${colors.muted('No prompt → interactive mode')}`);
     console.log('');
 
     // ── Ollama ──
     console.log(colors.ollama.bold('  Ollama'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('[prompt]')}        ${colors.text('Chat with Ollama (keeps context)')}`);
-    console.log(`                           ${colors.muted('No prompt → interactive mode')}`);
-    console.log(`  ${colors.ollama.bold('ollama models')}           ${colors.text('List downloaded models')}`);
-    console.log(`  ${colors.ollama.bold('ollama use')} ${colors.muted('<name>')}      ${colors.text('Switch the active model')}`);
-    console.log(`  ${colors.ollama.bold('ollama pull')} ${colors.muted('<name>')}     ${colors.text('Download a model')}`);
-    console.log(`  ${colors.ollama.bold('ollama rm')} ${colors.muted('<name>')}       ${colors.text('Remove a local model')}`);
-    console.log(`  ${colors.ollama.bold('ollama ps')}               ${colors.text('Show running models')}`);
-    console.log(`  ${colors.ollama.bold('ollama history')}          ${colors.text('View conversation history')}`);
-    console.log(`  ${colors.ollama.bold('ollama clear')}            ${colors.text('Reset conversation context')}`);
+    console.log(`  ${colors.ollama.bold('ollama models')}                 ${colors.text('List downloaded models')}`);
+    console.log(`  ${colors.ollama.bold('ollama use')} ${colors.muted('<name>')}             ${colors.text('Switch the active model')}`);
+    console.log(`  ${colors.ollama.bold('ollama pull')} ${colors.muted('<name>')}            ${colors.text('Download a model')}`);
+    console.log(`  ${colors.ollama.bold('ollama rm')} ${colors.muted('<name>')}              ${colors.text('Remove a local model')}`);
+    console.log(`  ${colors.ollama.bold('ollama ps')}                     ${colors.text('Show running models')}`);
+    console.log(`  ${colors.ollama.bold('ollama history')}                ${colors.text('View conversation history')}`);
+    console.log(`  ${colors.ollama.bold('ollama clear')}                  ${colors.text('Reset conversation context')}`);
     console.log('');
 
     // ── WhatsApp ──
     console.log(colors.whatsapp.bold('  WhatsApp'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.whatsapp.bold('wa connect')}             ${colors.text('Connect to WhatsApp (QR code)')}`);
-    console.log(`  ${colors.whatsapp.bold('wa send')} ${colors.muted('<to> <msg>')}    ${colors.text('Send a WhatsApp message')}`);
-    console.log(`  ${colors.whatsapp.bold('wa status')}              ${colors.text('Check WhatsApp connection')}`);
-    console.log(`  ${colors.whatsapp.bold('wa disconnect')}          ${colors.text('Disconnect WhatsApp')}`);
+    console.log(`  ${colors.whatsapp.bold('wa connect')}                    ${colors.text('Connect to WhatsApp (QR code)')}`);
+    console.log(`  ${colors.whatsapp.bold('wa send')} ${colors.muted('<to> <msg>')}            ${colors.text('Send a WhatsApp message')}`);
+    console.log(`  ${colors.whatsapp.bold('wa status')}                     ${colors.text('Check WhatsApp connection')}`);
+    console.log(`  ${colors.whatsapp.bold('wa disconnect')}                 ${colors.text('Disconnect WhatsApp')}`);
     console.log('');
 
     // ── Slack ──
     console.log(colors.highlight.bold('  Slack'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.highlight.bold('slack connect')}          ${colors.text('Connect to Slack workspace')}`);
-    console.log(`  ${colors.highlight.bold('slack send')} ${colors.muted('<ch> <msg>')} ${colors.text('Send a message to a channel')}`);
-    console.log(`  ${colors.highlight.bold('slack read')} ${colors.muted('<ch> [n]')}   ${colors.text('Read last N messages from channel')}`);
-    console.log(`  ${colors.highlight.bold('slack channels')}         ${colors.text('List available channels')}`);
-    console.log(`  ${colors.highlight.bold('slack status')}           ${colors.text('Check Slack connection')}`);
-    console.log(`  ${colors.highlight.bold('slack disconnect')}       ${colors.text('Disconnect Slack')}`);
+    console.log(`  ${colors.highlight.bold('slack connect')}                 ${colors.text('Connect to Slack workspace')}`);
+    console.log(`  ${colors.highlight.bold('slack send')} ${colors.muted('<ch> <msg>')}         ${colors.text('Send a message to a channel')}`);
+    console.log(`  ${colors.highlight.bold('slack read')} ${colors.muted('<ch> [n]')}           ${colors.text('Read last N messages from channel')}`);
+    console.log(`  ${colors.highlight.bold('slack channels')}                ${colors.text('List available channels')}`);
+    console.log(`  ${colors.highlight.bold('slack status')}                  ${colors.text('Check Slack connection')}`);
+    console.log(`  ${colors.highlight.bold('slack disconnect')}              ${colors.text('Disconnect Slack')}`);
     console.log('');
 
     // ── Telegram ──
     console.log(colors.telegram.bold('  Telegram'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.telegram.bold('tg connect')}            ${colors.text('Connect Telegram bot (polling)')}`);
-    console.log(`  ${colors.telegram.bold('tg send')} ${colors.muted('<id> <msg>')}    ${colors.text('Send a message to a chat')}`);
-    console.log(`  ${colors.telegram.bold('tg chats')}              ${colors.text('List recent chats')}`);
-    console.log(`  ${colors.telegram.bold('tg status')}             ${colors.text('Check Telegram bot status')}`);
-    console.log(`  ${colors.telegram.bold('tg disconnect')}         ${colors.text('Disconnect Telegram bot')}`);
+    console.log(`  ${colors.telegram.bold('tg connect')}                    ${colors.text('Connect Telegram bot (polling)')}`);
+    console.log(`  ${colors.telegram.bold('tg send')} ${colors.muted('<id> <msg>')}            ${colors.text('Send a message to a chat')}`);
+    console.log(`  ${colors.telegram.bold('tg chats')}                      ${colors.text('List recent chats')}`);
+    console.log(`  ${colors.telegram.bold('tg status')}                     ${colors.text('Check Telegram bot status')}`);
+    console.log(`  ${colors.telegram.bold('tg disconnect')}                 ${colors.text('Disconnect Telegram bot')}`);
     console.log('');
 
     // ── Ngrok ──
     console.log(colors.secondary.bold('  Ngrok'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.secondary.bold('ngrok')} ${colors.muted('[port]')}             ${colors.text('Start tunnel (default: 8080)')}`);
-    console.log(`  ${colors.secondary.bold('ngrok status')}               ${colors.text('Show tunnel info')}`);
-    console.log(`  ${colors.secondary.bold('ngrok stop')}                 ${colors.text('Stop the tunnel')}`);
+    console.log(`  ${colors.secondary.bold('ngrok')} ${colors.muted('[port]')}                  ${colors.text('Start tunnel (default: 8080)')}`);
+    console.log(`  ${colors.secondary.bold('ngrok status')}                  ${colors.text('Show tunnel info')}`);
+    console.log(`  ${colors.secondary.bold('ngrok stop')}                    ${colors.text('Stop the tunnel')}`);
     console.log('');
 
     // ── System ──
     console.log(colors.accent.bold('  System'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.accent.bold('theme list')}               ${colors.text('List available themes')}`);
-    console.log(`  ${colors.accent.bold('theme <id>')}               ${colors.text('Set the terminal theme')}`);
-    console.log(`  ${colors.accent.bold('folder')}                   ${colors.text('Show current working directory')}`);
-    console.log(`  ${colors.accent.bold('cd <dir>')}                 ${colors.text('Change current directory')}`);
-    console.log(`  ${colors.accent.bold('status')}                   ${colors.text('Show all services status')}`);
-    console.log(`  ${colors.accent.bold('help')}                     ${colors.text('Show this help')}`);
-    console.log(`  ${colors.accent.bold('clear')}                    ${colors.text('Clear the screen')}`);
-    console.log(`  ${colors.accent.bold('exit')}                     ${colors.text('Quit minigeri')}`);
+    console.log(`  ${colors.accent.bold('theme list')}                    ${colors.text('List available themes')}`);
+    console.log(`  ${colors.accent.bold('theme <id>')}                    ${colors.text('Set the terminal theme')}`);
+    console.log(`  ${colors.accent.bold('folder')}                        ${colors.text('Show current working directory')}`);
+    console.log(`  ${colors.accent.bold('cd <dir>')}                      ${colors.text('Change current directory')}`);
+    console.log(`  ${colors.accent.bold('status')}                        ${colors.text('Show all services status')}`);
+    console.log(`  ${colors.accent.bold('help')}                          ${colors.text('Show this help')}`);
+    console.log(`  ${colors.accent.bold('clear')}                         ${colors.text('Clear the screen')}`);
+    console.log(`  ${colors.accent.bold('exit')}                          ${colors.text('Quit minigeri')}`);
     console.log('');
 
     // ── Tips ──

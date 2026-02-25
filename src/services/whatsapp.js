@@ -14,6 +14,7 @@ import { handleNgrok } from './ngrok.js';
 let client = null;
 let isReady = false;
 let isConnecting = false;
+let ollamaAgents = new Map(); // chatId → OllamaAgent (persistent for context)
 
 const AUTH_PATH = join(homedir(), '.cli-bot', 'whatsapp-auth');
 
@@ -216,9 +217,19 @@ async function handleIncomingMessage(msg) {
 
                 try {
                     const config = getAgent(agentName);
-                    const agent = createAgent(agentName, config);
+                    let agent;
+                    if (agentName === 'ollama') {
+                        // Reuse persistent agent for Ollama to keep conversation context
+                        const chatKey = String(from);
+                        if (!ollamaAgents.has(chatKey)) {
+                            ollamaAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = ollamaAgents.get(chatKey);
+                    } else {
+                        agent = createAgent(agentName, config);
+                    }
 
-                    const response = await agent.send(prompt);
+                    const response = await agent.send(prompt, { silent: true });
 
                     const textToSend = response || '[No response]';
                     const formattedText = formatTelegramMarkdown(textToSend);

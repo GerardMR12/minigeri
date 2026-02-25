@@ -15,10 +15,11 @@ ${colors.secondary(' ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══�
 
     const info = drawBox([
         `  ${icons.robot}  ${colors.text('Your AI command center')}                      `,
-        `  ${colors.muted(`v${version}`)}                                            `,
-        `  ${colors.muted(`Path: ${process.cwd()}`)}`,
+        `  ${colors.muted(`v${version}`)} ${colors.muted(`@ ${process.cwd()}`)}`,
         `                                                        `,
-        `  ${colors.claude('claude')} ${colors.muted('│')} ${colors.gemini('gemini')} ${colors.muted('│')} ${colors.whatsapp('whatsapp')} ${colors.muted('│')} ${colors.highlight('slack')} ${colors.muted('│')} ${colors.telegram('telegram')} ${colors.muted('│')} ${colors.warning('help')}  `,
+        `  ${chalk.white('Type')} ${colors.claude('claude')}${chalk.white(',')} ${colors.gemini('gemini')} ${chalk.white('or')} ${colors.ollama('ollama')} ${chalk.white('to talk to AI agents.')} `,
+        `  ${chalk.white('Use with')} ${colors.whatsapp('whatsapp')} ${chalk.white('(')}${colors.whatsapp('wa')}${chalk.white('),')} ${colors.highlight('slack')} ${chalk.white('and')} ${colors.telegram('telegram')} ${chalk.white('(')}${colors.telegram('tg')}${chalk.white(')')}. `,
+        `  ${chalk.white('Enter')} ${colors.warning('help')} ${chalk.white('to read the guide.')}                      `,
     ], 56);
 
     console.log(info);

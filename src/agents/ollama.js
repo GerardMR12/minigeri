@@ -16,12 +16,15 @@ export class OllamaAgent extends BaseAgent {
     /**
      * Send a message using the Ollama HTTP /api/chat endpoint.
      * Maintains conversation history for multi-turn context.
-     * Streams the response token-by-token to stdout.
+     * Streams the response token-by-token to stdout (unless silent).
      *
      * @param {string} message - The user's prompt
+     * @param {object} [options] - Options
+     * @param {boolean} [options.silent=false] - If true, suppress stdout streaming
      * @returns {Promise<string>} The full assistant response
      */
-    async send(message) {
+    async send(message, options = {}) {
+        const silent = options.silent || false;
         // Add the user message to conversation history
         this.messages.push({ role: 'user', content: message });
 
@@ -64,7 +67,7 @@ export class OllamaAgent extends BaseAgent {
                                 if (json.message?.content) {
                                     const token = json.message.content;
                                     fullResponse += token;
-                                    process.stdout.write(token);
+                                    if (!silent) process.stdout.write(token);
                                 }
                                 if (json.error) {
                                     reject(new Error(json.error));
@@ -84,7 +87,7 @@ export class OllamaAgent extends BaseAgent {
                                 if (json.message?.content) {
                                     const token = json.message.content;
                                     fullResponse += token;
-                                    process.stdout.write(token);
+                                    if (!silent) process.stdout.write(token);
                                 }
                             } catch {
                                 // Skip

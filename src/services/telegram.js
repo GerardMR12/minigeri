@@ -11,6 +11,7 @@ let bot = null;
 let isConnected = false;
 let botInfoCache = null;
 let recentChats = new Map(); // chatId → { name, type }
+let ollamaAgents = new Map(); // chatId → OllamaAgent (persistent for context)
 
 /**
  * Parse the allowed Telegram user IDs from the environment.
@@ -288,9 +289,19 @@ async function handleIncomingMessage(msg, botInstance) {
                     await botInstance.sendMessage(chatId, `🤖 Thinking...`).catch(() => { });
 
                     const config = getAgent(agentName);
-                    const agent = createAgent(agentName, config);
+                    let agent;
+                    if (agentName === 'ollama') {
+                        // Reuse persistent agent for Ollama to keep conversation context
+                        const chatKey = String(chatId);
+                        if (!ollamaAgents.has(chatKey)) {
+                            ollamaAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = ollamaAgents.get(chatKey);
+                    } else {
+                        agent = createAgent(agentName, config);
+                    }
 
-                    const response = await agent.send(prompt);
+                    const response = await agent.send(prompt, { silent: true });
 
                     // Send back
                     const textToSend = response || '[No response]';
