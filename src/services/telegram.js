@@ -1,7 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { colors, icons } from '../ui/theme.js';
 import { createAgent } from '../agents/index.js';
-import { getAgent } from '../config.js';
+import { getAgent, loadConfig } from '../config.js';
 import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand } from '../utils/cmd.js';
 import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
@@ -12,6 +12,7 @@ let isConnected = false;
 let botInfoCache = null;
 let recentChats = new Map(); // chatId → { name, type }
 let ollamaAgents = new Map(); // chatId → OllamaAgent (persistent for context)
+let groqAgents = new Map(); // chatId → GroqAgent (persistent for context)
 
 /**
  * Parse the allowed Telegram user IDs from the environment.
@@ -264,24 +265,31 @@ async function handleIncomingMessage(msg, botInstance) {
                 botInstance.sendMessage(chatId, response, { parse_mode: 'Markdown' });
             }
         } else if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
-            agentName = 'gemini-cli';
+            const config = loadConfig();
+            agentName = config.geminiMode === 'api' ? 'gemini-api' : 'gemini-cli';
             prompt = textStr.substring(7).trim();
         } else if (textStr.startsWith('/claude ') || textStr === '/claude') {
-            agentName = 'claude-code';
+            const config = loadConfig();
+            agentName = config.claudeMode === 'api' ? 'claude-api' : 'claude-code';
             prompt = textStr.substring(7).trim();
         } else if (textStr.startsWith('/ollama ') || textStr === '/ollama') {
             agentName = 'ollama';
             prompt = textStr.substring(7).trim();
+        } else if (textStr.startsWith('/groq ') || textStr === '/groq') {
+            agentName = 'groq';
+            prompt = textStr.substring(5).trim();
         }
 
         if (agentName) {
             if (!prompt) {
-                botInstance.sendMessage(chatId, `Please provide a prompt. Example: /${agentName === 'gemini-cli' ? 'gemini' : (agentName === 'ollama' ? 'ollama' : 'claude')} Hello!`);
+                const pureName = agentName.replace('-cli', '').replace('-code', '').replace('-api', '');
+                botInstance.sendMessage(chatId, `Please provide a prompt. Example: /${pureName} Hello!`);
             } else {
                 console.log(colors.muted(`\n  [Routing Telegram message to ${agentName}...]`));
                 let botColor;
-                if (agentName === 'gemini-cli') botColor = colors.gemini;
-                else if (agentName === 'claude-code') botColor = colors.claude;
+                if (agentName.startsWith('gemini')) botColor = colors.gemini;
+                else if (agentName.startsWith('claude')) botColor = colors.claude;
+                else if (agentName === 'groq') botColor = colors.groq;
                 else botColor = colors.ollama;
 
                 try {
@@ -297,6 +305,12 @@ async function handleIncomingMessage(msg, botInstance) {
                             ollamaAgents.set(chatKey, createAgent(agentName, config));
                         }
                         agent = ollamaAgents.get(chatKey);
+                    } else if (agentName === 'groq') {
+                        const chatKey = String(chatId);
+                        if (!groqAgents.has(chatKey)) {
+                            groqAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = groqAgents.get(chatKey);
                     } else {
                         agent = createAgent(agentName, config);
                     }

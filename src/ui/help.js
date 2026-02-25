@@ -4,12 +4,13 @@ export function getHelpText() {
     return `🤖 *minigeri messaging help*
 
 *Available commands:*
-• \`/gemini [prompt]\` — Talk to Gemini CLI
-• \`/claude [prompt]\` — Talk to Claude Code
-• \`/ollama [prompt]\` — Talk to Ollama (local)
+• \`/gemini <prompt>\` — Talk to Gemini
+• \`/claude <prompt>\` — Talk to Claude
+• \`/ollama <prompt>\` — Talk to Ollama (local)
+• \`/groq <prompt>\` — Talk to Groq (cloud, fast)
 • \`/folder\` — Show current working directory
 • \`/ngrok\` — Start ngrok tunnel on port 8080
-• \`/cmd [cmd]\` — Run safe remote commands (cd, mkdir, ls)
+• \`/cmd <cmd>\` — Run safe remote commands (cd, mkdir, ls)
 • \`help\` — Show this help message
 
 *Examples:*
@@ -29,12 +30,31 @@ export function showHelp() {
     // ── AI Agents ──
     console.log(colors.primary.bold('  AI Agents'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.claude.bold('claude')} ${colors.muted('[prompt]')}               ${colors.text('Talk to Claude Code')}`);
-    console.log(`                                  ${colors.muted('No prompt → interactive mode')}`);
-    console.log(`  ${colors.gemini.bold('gemini')} ${colors.muted('[prompt]')}               ${colors.text('Talk to Gemini CLI')}`);
-    console.log(`                                  ${colors.muted('No prompt → interactive mode')}`);
-    console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('[prompt]')}               ${colors.text('Chat with Ollama (keeps context)')}`);
-    console.log(`                                  ${colors.muted('No prompt → interactive mode')}`);
+    console.log(`  ${colors.claude.bold('claude')} ${colors.muted('<prompt>')}               ${colors.text('Talk to Claude')}`);
+    console.log(`  ${colors.gemini.bold('gemini')} ${colors.muted('<prompt>')}               ${colors.text('Talk to Gemini')}`);
+    console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('<prompt>')}               ${colors.text('Chat with Ollama (keeps context)')}`);
+    console.log(`  ${colors.groq.bold('groq')} ${colors.muted('<prompt>')}                 ${colors.text('Chat with Groq (cloud, fast)')}`);
+    console.log('');
+
+    // ── Claude ──
+    console.log(colors.claude.bold('  Claude'));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.claude.bold('claude mode')} ${colors.muted('<cli|api>')}         ${colors.text('Switch CLI/API mode')}`);
+    console.log('');
+
+    // ── Gemini ──
+    console.log(colors.gemini.bold('  Gemini'));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.gemini.bold('gemini mode')} ${colors.muted('<cli|api>')}         ${colors.text('Switch CLI/API mode')}`);
+    console.log('');
+
+    // ── Groq ──
+    console.log(colors.groq.bold('  Groq'));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.groq.bold('groq models')}                   ${colors.text('List available models')}`);
+    console.log(`  ${colors.groq.bold('groq use')} ${colors.muted('<name>')}               ${colors.text('Switch the active model')}`);
+    console.log(`  ${colors.groq.bold('groq history')}                  ${colors.text('View conversation history')}`);
+    console.log(`  ${colors.groq.bold('groq clear')}                    ${colors.text('Reset conversation context')}`);
     console.log('');
 
     // ── Ollama ──

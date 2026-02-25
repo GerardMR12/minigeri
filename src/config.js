@@ -11,22 +11,42 @@ const CONFIG_FILE = join(CONFIG_DIR, 'config.json');
 
 const DEFAULT_CONFIG = {
     defaultAgent: process.env.DEFAULT_AGENT || 'claude-code',
+    claudeMode: process.env.CLAUDE_MODE || 'cli', // 'cli' or 'api'
+    geminiMode: process.env.GEMINI_MODE || 'cli', // 'cli' or 'api'
     agents: {
         'claude-code': {
             type: 'cli',
             command: process.env.CLAUDE_CODE_PATH || 'claude',
             description: 'Claude Code — Anthropic\'s coding agent',
         },
+        'claude-api': {
+            type: 'api',
+            apiKey: process.env.ANTHROPIC_API_KEY || '',
+            model: process.env.CLAUDE_MODEL || 'claude-3-7-sonnet-20250219',
+            description: 'Claude API — Anthropic Messages API',
+        },
         'gemini-cli': {
             type: 'cli',
             command: process.env.GEMINI_CLI_PATH || 'gemini',
             description: 'Gemini CLI — Google\'s AI assistant',
+        },
+        'gemini-api': {
+            type: 'api',
+            apiKey: process.env.GOOGLE_API_KEY || '',
+            model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+            description: 'Gemini API — Google Generative Language API',
         },
         'ollama': {
             type: 'cli',
             command: process.env.OLLAMA_PATH || 'ollama',
             model: process.env.OLLAMA_MODEL || 'llama3',
             description: 'Ollama — Local LLMs',
+        },
+        'groq': {
+            type: 'api',
+            apiKey: process.env.GROQ_API_KEY || '',
+            model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+            description: 'Groq — Blazing-fast cloud inference',
         },
     },
     history: {

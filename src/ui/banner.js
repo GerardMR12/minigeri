@@ -17,7 +17,7 @@ ${colors.secondary(' ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══�
         `  ${icons.robot}  ${colors.text('Your AI command center')}                      `,
         `  ${colors.muted(`v${version}`)} ${colors.muted(`@ ${process.cwd()}`)}`,
         `                                                        `,
-        `  ${chalk.white('Type')} ${colors.claude('claude')}${chalk.white(',')} ${colors.gemini('gemini')} ${chalk.white('or')} ${colors.ollama('ollama')} ${chalk.white('to talk to AI agents.')} `,
+        `  ${chalk.white('Type')} ${colors.claude('claude')}${chalk.white(',')} ${colors.gemini('gemini')}${chalk.white(',')} ${colors.ollama('ollama')} ${chalk.white('or')} ${colors.groq('groq')} ${chalk.white('to talk to AI.')} `,
         `  ${chalk.white('Use with')} ${colors.whatsapp('whatsapp')} ${chalk.white('(')}${colors.whatsapp('wa')}${chalk.white('),')} ${colors.highlight('slack')} ${chalk.white('and')} ${colors.telegram('telegram')} ${chalk.white('(')}${colors.telegram('tg')}${chalk.white(')')}. `,
         `  ${chalk.white('Enter')} ${colors.warning('help')} ${chalk.white('to read the guide.')}                      `,
     ], 56);

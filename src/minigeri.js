@@ -42,13 +42,36 @@ if (currentConfig.theme) {
 // ─── Command Handlers ─────────────────────────────────────────────
 
 async function handleClaude(args, rl) {
+    const subcommand = args[0]?.toLowerCase();
+
+    if (subcommand === 'mode' || subcommand === 'use') {
+        const mode = args[1]?.toLowerCase();
+        if (mode !== 'cli' && mode !== 'api') {
+            console.log(colors.warning(`\n  Usage: ${colors.claude('claude mode <cli|api>')}\n`));
+            return;
+        }
+        const config = loadConfig();
+        config.claudeMode = mode;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Active Claude mode set to ${colors.claude.bold(mode)}\n`);
+        return;
+    }
+
     const prompt = args.join(' ').trim();
-    const agentConfig = getAgent('claude-code');
-    const agent = createAgent('claude-code', agentConfig);
+    const config = loadConfig();
+    const isApi = config.claudeMode === 'api';
+    const agentName = isApi ? 'claude-api' : 'claude-code';
+
+    const agentConfig = getAgent(agentName);
+    const agent = createAgent(agentName, agentConfig);
 
     const available = await agent.isAvailable();
     if (!available) {
-        console.log(colors.error(`  ${icons.cross} Claude Code is not installed or not in PATH`));
+        if (isApi) {
+            console.log(colors.error(`  ${icons.cross} ANTHROPIC_API_KEY is not set.`));
+        } else {
+            console.log(colors.error(`  ${icons.cross} Claude Code is not installed or not in PATH`));
+        }
         return;
     }
 
@@ -80,13 +103,36 @@ async function handleClaude(args, rl) {
 }
 
 async function handleGemini(args, rl) {
+    const subcommand = args[0]?.toLowerCase();
+
+    if (subcommand === 'mode' || subcommand === 'use') {
+        const mode = args[1]?.toLowerCase();
+        if (mode !== 'cli' && mode !== 'api') {
+            console.log(colors.warning(`\n  Usage: ${colors.gemini('gemini mode <cli|api>')}\n`));
+            return;
+        }
+        const config = loadConfig();
+        config.geminiMode = mode;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Active Gemini mode set to ${colors.gemini.bold(mode)}\n`);
+        return;
+    }
+
     const prompt = args.join(' ').trim();
-    const agentConfig = getAgent('gemini-cli');
-    const agent = createAgent('gemini-cli', agentConfig);
+    const config = loadConfig();
+    const isApi = config.geminiMode === 'api';
+    const agentName = isApi ? 'gemini-api' : 'gemini-cli';
+
+    const agentConfig = getAgent(agentName);
+    const agent = createAgent(agentName, agentConfig);
 
     const available = await agent.isAvailable();
     if (!available) {
-        console.log(colors.error(`  ${icons.cross} Gemini CLI is not installed or not in PATH`));
+        if (isApi) {
+            console.log(colors.error(`  ${icons.cross} GOOGLE_API_KEY is not set.`));
+        } else {
+            console.log(colors.error(`  ${icons.cross} Gemini CLI is not installed or not in PATH`));
+        }
         return;
     }
 
@@ -107,10 +153,10 @@ async function handleGemini(args, rl) {
     }
 
     console.log(colors.gemini(`\n  ${icons.spark} Asking Gemini...`));
-    console.log(colors.muted('───────────────────────────────────────────────\n'));
+    console.log(colors.muted('  ─────────────────────────────────────────────\n'));
     try {
         await agent.send(prompt);
-        console.log(colors.muted('\n───────────────────────────────────────────────'));
+        console.log(colors.muted('\n  ─────────────────────────────────────────────'));
     } catch (err) {
         console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
     }
@@ -345,6 +391,145 @@ async function handleOllama(args, rl) {
     }
 }
 
+// ── Groq ───────────────────────────────────────────────────────────
+
+let groqAgent = null;
+let groqModelName = null;
+
+function getGroqAgent() {
+    const agentConfig = getAgent('groq');
+    // Recreate agent if model changed
+    if (!groqAgent || groqModelName !== agentConfig.model) {
+        groqAgent = createAgent('groq', agentConfig);
+        groqModelName = agentConfig.model;
+    }
+    return { agent: groqAgent, agentConfig };
+}
+
+async function handleGroq(args, rl) {
+    const subcommand = args[0]?.toLowerCase();
+    const { agent, agentConfig } = getGroqAgent();
+
+    const available = await agent.isAvailable();
+    if (!available) {
+        console.log(colors.error(`\n  ${icons.cross} GROQ_API_KEY is not set.`));
+        console.log(colors.muted('  Get a free key at: ') + colors.groq('https://console.groq.com/keys'));
+        console.log(colors.muted('  Then add ') + colors.text('GROQ_API_KEY=gsk_...') + colors.muted(' to your .env file\n'));
+        return;
+    }
+
+    switch (subcommand) {
+        // List available models
+        case 'models':
+        case 'list':
+        case 'ls': {
+            console.log(`\n  ${colors.groq.bold('Available Groq Models')}`);
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            try {
+                const { models } = await agent.listModels();
+                if (models.length === 0) {
+                    console.log(colors.muted('  No models available.'));
+                } else {
+                    for (const m of models) {
+                        const isCurrent = m.id === agentConfig.model;
+                        const marker = isCurrent ? colors.success(icons.check) : ' ';
+                        console.log(`  ${marker} ${colors.groq.bold(m.id.padEnd(36))} ${colors.muted(m.owned_by)}`);
+                    }
+                }
+            } catch (err) {
+                console.log(colors.error(`  ${icons.cross} ${err.message}`));
+            }
+            console.log('');
+            break;
+        }
+
+        // Switch the active model
+        case 'use':
+        case 'set': {
+            const modelName = args[1];
+            if (!modelName) {
+                console.log(colors.warning(`\n  Usage: ${colors.groq('groq use <model_name>')}`));
+                console.log(colors.muted('  Example: groq use llama-3.1-8b-instant'));
+                console.log(colors.muted('  Tip: Use ') + colors.groq('groq models') + colors.muted(' to see available models\n'));
+                return;
+            }
+            const config = loadConfig();
+            if (!config.agents) config.agents = {};
+            if (!config.agents.groq) config.agents.groq = {};
+            config.agents.groq.model = modelName;
+            saveConfig(config);
+            // Force agent recreation on next call with the new model
+            groqAgent = null;
+            groqModelName = null;
+            console.log(`\n  ${colors.success(icons.check)} Active model set to ${colors.groq.bold(modelName)}`);
+            console.log(colors.muted('  Conversation history has been reset.\n'));
+            break;
+        }
+
+        // Clear conversation history
+        case 'clear':
+        case 'reset': {
+            agent.clearHistory();
+            console.log(`\n  ${colors.success(icons.check)} Conversation history cleared\n`);
+            break;
+        }
+
+        // Show conversation history
+        case 'history':
+        case 'ctx': {
+            const stats = agent.getHistoryStats();
+            console.log(`\n  ${colors.groq.bold('Conversation History')} ${colors.muted('—')} ${colors.groq(agentConfig.model)}`);
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            if (stats.turns === 0) {
+                console.log(colors.muted('  No conversation yet. Send a prompt to start chatting.'));
+            } else {
+                console.log(colors.muted(`  ${stats.turns} turn(s), ${stats.messages} message(s)\n`));
+                for (const msg of agent.messages) {
+                    if (msg.role === 'user') {
+                        console.log(`  ${colors.accent.bold('You:')} ${colors.text(msg.content)}`);
+                    } else if (msg.role === 'assistant') {
+                        const preview = msg.content.length > 200
+                            ? msg.content.substring(0, 200) + '...'
+                            : msg.content;
+                        console.log(`  ${colors.groq.bold('Groq:')} ${colors.muted(preview)}`);
+                    }
+                    console.log('');
+                }
+            }
+            console.log('');
+            break;
+        }
+
+        // No subcommand → usage hint
+        case undefined: {
+            console.log(colors.groq(`\n  ${icons.spark} Groq — blazing-fast cloud inference`));
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            console.log(colors.muted('  Usage: ') + colors.groq('groq <prompt>'));
+            console.log(colors.muted('  Example: ') + colors.text('groq What is the capital of France?\n'));
+            break;
+        }
+
+        // Anything else → treat as a prompt (with conversation context)
+        default: {
+            const prompt = args.join(' ').trim();
+            const stats = agent.getHistoryStats();
+            const ctxLabel = stats.turns > 0
+                ? colors.muted(` (turn ${stats.turns + 1}, with context)`)
+                : '';
+            console.log(colors.groq(`\n  ${icons.spark} Asking Groq (${agentConfig.model})...`) + ctxLabel);
+            console.log(colors.muted('  ─────────────────────────────────────────────\n'));
+            try {
+                await agent.send(prompt);
+                console.log(colors.muted('\n\n  ─────────────────────────────────────────────'));
+            } catch (err) {
+                console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
+            }
+            console.log('');
+            break;
+        }
+    }
+}
+
 async function handleWhatsApp(args) {
     const subcommand = args[0]?.toLowerCase();
 
@@ -531,9 +716,10 @@ async function handleStatus() {
             : colors.error(`${icons.circle} Not found`);
 
         let color;
-        if (name === 'claude-code') color = colors.claude;
-        else if (name === 'gemini-cli') color = colors.gemini;
+        if (name === 'claude-code' || name === 'claude-api') color = colors.claude;
+        else if (name === 'gemini-cli' || name === 'gemini-api') color = colors.gemini;
         else if (name === 'ollama') color = colors.ollama;
+        else if (name === 'groq') color = colors.groq;
         else color = colors.primary;
 
         console.log(`  ${status}  ${color.bold(name)}`);
@@ -595,9 +781,11 @@ async function main() {
     console.log(colors.muted(`  ${icons.star} Hello! What can I do for you today?`));
 
     const commandsList = [
-        'claude', 'gemini',
+        'claude', 'claude mode cli', 'claude mode api',
+        'gemini', 'gemini mode cli', 'gemini mode api',
         'ollama', 'ollama models', 'ollama use', 'ollama pull', 'ollama rm', 'ollama ps',
         'ollama clear', 'ollama history',
+        'groq', 'groq models', 'groq use', 'groq history', 'groq clear',
         'wa connect', 'wa send', 'wa status', 'wa disconnect',
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
@@ -618,6 +806,7 @@ async function main() {
     const MAX_VISIBLE = 4;
     let suggestionOffset = 0;
     let lastInputText = '';
+    let isExecuting = false;
 
     // ── Selection mode state ──
     let inSelectionMode = false;
@@ -758,7 +947,8 @@ async function main() {
     };
 
     // Eagerly refresh suggestions on every keypress for smooth updates
-    process.stdin.on('keypress', () => {
+    process.stdin.on('keypress', (str, key) => {
+        if (isExecuting) return; // Prevent prompt repainting while agents are streaming
         if (!inSelectionMode) {
             setTimeout(() => {
                 rl._refreshLine();
@@ -769,6 +959,7 @@ async function main() {
     rl.prompt();
 
     rl.on('line', async (line) => {
+        isExecuting = true;
         // Cleanly wipe the ghost suggestion text that was left on the previous line
         process.stdout.write('\x1B[1A\x1B[2K\x1B[0G' + rl._prompt + line + '\n');
 
@@ -795,6 +986,10 @@ async function main() {
 
                 case 'ollama':
                     await handleOllama(args, rl);
+                    break;
+
+                case 'groq':
+                    await handleGroq(args, rl);
                     break;
 
                 // ── WhatsApp ──
@@ -874,6 +1069,7 @@ async function main() {
             console.log(colors.error(`  ${icons.cross} Error: ${err.message}\n`));
         }
 
+        isExecuting = false;
         rl.prompt();
     });
 

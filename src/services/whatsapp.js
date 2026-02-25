@@ -5,7 +5,7 @@ import { colors, icons } from '../ui/theme.js';
 import { join } from 'path';
 import { homedir } from 'os';
 import { createAgent } from '../agents/index.js';
-import { getAgent } from '../config.js';
+import { getAgent, loadConfig } from '../config.js';
 import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand } from '../utils/cmd.js';
 import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
@@ -15,6 +15,7 @@ let client = null;
 let isReady = false;
 let isConnecting = false;
 let ollamaAgents = new Map(); // chatId → OllamaAgent (persistent for context)
+let groqAgents = new Map(); // chatId → GroqAgent (persistent for context)
 
 const AUTH_PATH = join(homedir(), '.cli-bot', 'whatsapp-auth');
 
@@ -193,26 +194,32 @@ async function handleIncomingMessage(msg) {
     } else {
         let agentName = null;
         let prompt = '';
+        const botConfig = loadConfig();
 
         if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
-            agentName = 'gemini-cli';
+            agentName = botConfig.geminiMode === 'api' ? 'gemini-api' : 'gemini-cli';
             prompt = textStr.substring(7).trim();
         } else if (textStr.startsWith('/claude ') || textStr === '/claude') {
-            agentName = 'claude-code';
+            agentName = botConfig.claudeMode === 'api' ? 'claude-api' : 'claude-code';
             prompt = textStr.substring(7).trim();
         } else if (textStr.startsWith('/ollama ') || textStr === '/ollama') {
             agentName = 'ollama';
             prompt = textStr.substring(7).trim();
+        } else if (textStr.startsWith('/groq ') || textStr === '/groq') {
+            agentName = 'groq';
+            prompt = textStr.substring(5).trim();
         }
 
         if (agentName) {
             if (!prompt) {
-                await msg.reply(`Please provide a prompt. Example: /${agentName === 'gemini-cli' ? 'gemini' : (agentName === 'ollama' ? 'ollama' : 'claude')} Hello!`);
+                const pureName = agentName.replace('-cli', '').replace('-code', '').replace('-api', '');
+                await msg.reply(`Please provide a prompt. Example: /${pureName} Hello!`);
             } else {
                 console.log(colors.muted(`\n  [Routing WhatsApp message to ${agentName}...]`));
                 let botColor;
-                if (agentName === 'gemini-cli') botColor = colors.gemini;
-                else if (agentName === 'claude-code') botColor = colors.claude;
+                if (agentName.startsWith('gemini')) botColor = colors.gemini;
+                else if (agentName.startsWith('claude')) botColor = colors.claude;
+                else if (agentName === 'groq') botColor = colors.groq;
                 else botColor = colors.ollama;
 
                 try {
@@ -225,6 +232,12 @@ async function handleIncomingMessage(msg) {
                             ollamaAgents.set(chatKey, createAgent(agentName, config));
                         }
                         agent = ollamaAgents.get(chatKey);
+                    } else if (agentName === 'groq') {
+                        const chatKey = String(from);
+                        if (!groqAgents.has(chatKey)) {
+                            groqAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = groqAgents.get(chatKey);
                     } else {
                         agent = createAgent(agentName, config);
                     }

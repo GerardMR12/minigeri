@@ -19,6 +19,7 @@ export const palettes = {
         ollama: '#525252',   // Ollama dark gray
         slack: '#4A154B',   // Slack aubergine
         telegram: '#0088CC',   // Telegram blue
+        groq: '#F55036',       // Groq orange
     },
     ocean: {
         primary: '#0369A1',   // Deep Blue
@@ -37,6 +38,7 @@ export const palettes = {
         ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
+        groq: '#F55036',
     },
     forest: {
         primary: '#166534',   // Deep Green
@@ -55,6 +57,7 @@ export const palettes = {
         ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
+        groq: '#F55036',
     },
     cyberpunk: {
         primary: '#D946EF',   // Fuchsia
@@ -73,6 +76,7 @@ export const palettes = {
         ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
+        groq: '#F55036',
     },
     dracula: {
         primary: '#BD93F9',
@@ -91,6 +95,7 @@ export const palettes = {
         ollama: '#525252',
         slack: '#4A154B',
         telegram: '#0088CC',
+        groq: '#F55036',
     }
 };
 

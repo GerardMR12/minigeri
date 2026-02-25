@@ -1,11 +1,17 @@
 import { ClaudeCodeAgent } from './claude-code.js';
 import { GeminiCliAgent } from './gemini-cli.js';
 import { OllamaAgent } from './ollama.js';
+import { GroqAgent } from './groq.js';
+import { ClaudeApiAgent } from './claude-api.js';
+import { GeminiApiAgent } from './gemini-api.js';
 
 const AGENT_REGISTRY = {
     'claude-code': ClaudeCodeAgent,
     'gemini-cli': GeminiCliAgent,
     'ollama': OllamaAgent,
+    'groq': GroqAgent,
+    'claude-api': ClaudeApiAgent,
+    'gemini-api': GeminiApiAgent,
 };
 
 /**
