@@ -1,9 +1,10 @@
 import https from 'https';
 import { BaseAgent } from './base.js';
+import { toAnthropicTools, executeTool } from '../tools/index.js';
 
 /**
  * Claude API Agent
- * Uses the Anthropic Messages API.
+ * Uses the Anthropic Messages API with tool use.
  */
 export class ClaudeApiAgent extends BaseAgent {
     constructor(config = {}) {
@@ -11,9 +12,6 @@ export class ClaudeApiAgent extends BaseAgent {
         this.apiKey = config.apiKey || process.env.ANTHROPIC_API_KEY || '';
         this.model = config.model || 'claude-3-7-sonnet-20250219';
         this.baseUrl = config.baseUrl || 'https://api.anthropic.com';
-
-        // Conversation history: array of { role: 'user'|'assistant', content: string }
-        this.messages = [];
     }
 
     async send(message, options = {}) {
@@ -24,14 +22,72 @@ export class ClaudeApiAgent extends BaseAgent {
         const silent = options.silent || false;
         this.messages.push({ role: 'user', content: message });
 
-        const body = JSON.stringify({
-            model: this.model,
-            max_tokens: 4096,
-            messages: this.messages,
-            stream: true,
-        });
+        // Build file-tree system context
+        const systemContext = this.buildSystemContext();
 
+        // Shared tools in Anthropic format
+        const tools = toAnthropicTools();
+
+        // Tool-calling loop
+        const MAX_TOOL_ROUNDS = 5;
+
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+            const result = await this._callApi(this.messages, {
+                system: systemContext,
+                tools,
+                silent,
+            });
+
+            // If the model returned tool calls, execute them and loop
+            if (result.toolUse && result.toolUse.length > 0) {
+                // Add the assistant's response (may contain text + tool_use blocks)
+                this.messages.push({
+                    role: 'assistant',
+                    content: result.contentBlocks,
+                });
+
+                // Execute each tool and collect results
+                const toolResults = [];
+                for (const tu of result.toolUse) {
+                    if (!silent) this.logToolCall(tu.name, tu.input || {});
+
+                    const toolResult = executeTool(tu.name, tu.input || {});
+                    toolResults.push({
+                        type: 'tool_result',
+                        tool_use_id: tu.id,
+                        content: toolResult,
+                    });
+                }
+
+                this.messages.push({ role: 'user', content: toolResults });
+                continue;
+            }
+
+            // No tool calls — final text response
+            if (result.text) {
+                this.messages.push({ role: 'assistant', content: result.text });
+            }
+            return result.text;
+        }
+
+        return '';
+    }
+
+    /**
+     * Call the Anthropic Messages API once (streaming).
+     * @private
+     */
+    _callApi(messages, { system, tools, silent = false }) {
         return new Promise((resolve, reject) => {
+            const body = JSON.stringify({
+                model: this.model,
+                max_tokens: 4096,
+                messages,
+                stream: true,
+                ...(system ? { system } : {}),
+                ...(tools && tools.length > 0 ? { tools } : {}),
+            });
+
             const url = new URL('/v1/messages', this.baseUrl);
             const req = https.request(
                 {
@@ -42,13 +98,13 @@ export class ClaudeApiAgent extends BaseAgent {
                     headers: {
                         'Content-Type': 'application/json',
                         'x-api-key': this.apiKey,
-                        'anthropic-version': '2023-06-01'
+                        'anthropic-version': '2023-06-01',
                     },
                 },
                 (res) => {
                     if (res.statusCode !== 200) {
                         let errorBody = '';
-                        res.on('data', (c) => errorBody += c);
+                        res.on('data', (c) => (errorBody += c));
                         res.on('end', () => {
                             this.messages.pop();
                             try {
@@ -61,8 +117,12 @@ export class ClaudeApiAgent extends BaseAgent {
                         return;
                     }
 
-                    let fullResponse = '';
+                    let fullText = '';
                     let buffer = '';
+                    const contentBlocks = [];   // Track all content blocks
+                    const toolUseBlocks = [];   // Track tool_use blocks
+                    let currentToolUse = null;
+                    let toolInputJson = '';
 
                     res.on('data', (chunk) => {
                         buffer += chunk.toString();
@@ -75,20 +135,62 @@ export class ClaudeApiAgent extends BaseAgent {
                             const data = trimmed.slice(6);
                             try {
                                 const json = JSON.parse(data);
+
+                                // Text delta
                                 if (json.type === 'content_block_delta' && json.delta?.type === 'text_delta') {
                                     const token = json.delta.text;
-                                    fullResponse += token;
+                                    fullText += token;
                                     if (!silent) process.stdout.write(token);
+                                }
+
+                                // Tool use start
+                                if (json.type === 'content_block_start' && json.content_block?.type === 'tool_use') {
+                                    currentToolUse = {
+                                        type: 'tool_use',
+                                        id: json.content_block.id,
+                                        name: json.content_block.name,
+                                        input: {},
+                                    };
+                                    toolInputJson = '';
+                                }
+
+                                // Tool use input delta
+                                if (json.type === 'content_block_delta' && json.delta?.type === 'input_json_delta') {
+                                    toolInputJson += json.delta.partial_json || '';
+                                }
+
+                                // Content block stop — finalize if it was a tool_use
+                                if (json.type === 'content_block_stop' && currentToolUse) {
+                                    try {
+                                        currentToolUse.input = JSON.parse(toolInputJson || '{}');
+                                    } catch {
+                                        currentToolUse.input = {};
+                                    }
+                                    toolUseBlocks.push(currentToolUse);
+                                    contentBlocks.push(currentToolUse);
+                                    currentToolUse = null;
+                                    toolInputJson = '';
+                                }
+
+                                // Text block start
+                                if (json.type === 'content_block_start' && json.content_block?.type === 'text') {
+                                    // Will be accumulated via text_delta events
                                 }
                             } catch { }
                         }
                     });
 
                     res.on('end', () => {
-                        if (fullResponse) {
-                            this.messages.push({ role: 'assistant', content: fullResponse });
+                        // Add any accumulated text as a text block
+                        if (fullText) {
+                            contentBlocks.unshift({ type: 'text', text: fullText });
                         }
-                        resolve(fullResponse);
+
+                        resolve({
+                            text: fullText,
+                            toolUse: toolUseBlocks.length > 0 ? toolUseBlocks : null,
+                            contentBlocks,
+                        });
                     });
                     res.on('error', reject);
                 }
@@ -103,16 +205,10 @@ export class ClaudeApiAgent extends BaseAgent {
         });
     }
 
-    clearHistory() {
-        this.messages = [];
-    }
-    getHistoryStats() {
-        const userMessages = this.messages.filter(m => m.role === 'user').length;
-        return { turns: userMessages, messages: this.messages.length };
-    }
     async interactive() {
-        throw new Error('Interactive mode is not supported for Claude API agent via CLI interface yet. Provide a prompt directly.');
+        throw new Error('Interactive mode is not supported for Claude API agent. Provide a prompt directly.');
     }
+
     async isAvailable() {
         return !!this.apiKey;
     }

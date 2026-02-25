@@ -1,5 +1,6 @@
 import https from 'https';
 import { BaseAgent } from './base.js';
+import { toOpenAITools, executeTool } from '../tools/index.js';
 
 /**
  * Groq Cloud Agent — blazing-fast inference for open-source models.
@@ -14,15 +15,12 @@ export class GroqAgent extends BaseAgent {
         this.apiKey = config.apiKey || process.env.GROQ_API_KEY || '';
         this.model = config.model || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
         this.baseUrl = config.baseUrl || 'https://api.groq.com';
-
-        // Conversation history: array of { role: 'user'|'assistant'|'system', content: string }
-        this.messages = [];
     }
 
     /**
      * Send a message using the Groq /openai/v1/chat/completions endpoint.
-     * Maintains conversation history for multi-turn context.
-     * Streams the response token-by-token to stdout (unless silent).
+     * Supports tool calling — the model can request files as needed.
+     * Streams the final response token-by-token to stdout (unless silent).
      *
      * @param {string} message - The user's prompt
      * @param {object} [options] - Options
@@ -41,13 +39,78 @@ export class GroqAgent extends BaseAgent {
         // Add the user message to conversation history
         this.messages.push({ role: 'user', content: message });
 
-        const body = JSON.stringify({
-            model: this.model,
-            messages: this.messages,
-            stream: true,
-        });
+        // Build file-tree system context
+        const systemContext = this.buildSystemContext();
+        const systemMessage = systemContext ? { role: 'system', content: systemContext } : null;
 
+        // Shared tools in OpenAI format
+        const tools = toOpenAITools();
+
+        // Tool-calling loop: keep calling until the model gives a final text response
+        const MAX_TOOL_ROUNDS = 5;
+
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+            const apiMessages = [];
+            if (systemMessage) apiMessages.push(systemMessage);
+            apiMessages.push(...this.messages);
+
+            const result = await this._callApi(apiMessages, {
+                stream: false,
+                tools,
+                silent,
+            });
+
+            // If the model returned tool calls, execute them and loop
+            if (result.toolCalls && result.toolCalls.length > 0) {
+                this.messages.push({
+                    role: 'assistant',
+                    content: null,
+                    tool_calls: result.toolCalls,
+                });
+
+                for (const tc of result.toolCalls) {
+                    let args = {};
+                    try {
+                        const parsed = JSON.parse(tc.function?.arguments || '{}');
+                        if (parsed && typeof parsed === 'object') args = parsed;
+                    } catch { }
+
+                    if (!silent) this.logToolCall(tc.function?.name, args);
+
+                    const toolResult = executeTool(tc.function.name, args);
+                    this.messages.push({
+                        role: 'tool',
+                        tool_call_id: tc.id,
+                        content: toolResult,
+                    });
+                }
+
+                continue;
+            }
+
+            // No tool calls — this is the final text response
+            if (result.content) {
+                this.messages.push({ role: 'assistant', content: result.content });
+            }
+            return result.content;
+        }
+
+        return '';
+    }
+
+    /**
+     * Call the Groq API once.
+     * @private
+     */
+    _callApi(messages, { stream = false, tools, silent = false }) {
         return new Promise((resolve, reject) => {
+            const body = JSON.stringify({
+                model: this.model,
+                messages,
+                stream,
+                ...(tools ? { tools, tool_choice: 'auto' } : {}),
+            });
+
             const url = new URL('/openai/v1/chat/completions', this.baseUrl);
 
             const req = https.request(
@@ -63,20 +126,17 @@ export class GroqAgent extends BaseAgent {
                 },
                 (res) => {
                     if (res.statusCode === 401) {
-                        this.messages.pop();
                         reject(new Error('Invalid GROQ_API_KEY. Check your key at https://console.groq.com/keys'));
                         return;
                     }
                     if (res.statusCode === 429) {
-                        this.messages.pop();
                         reject(new Error('Groq rate limit exceeded. The free tier has request limits — wait a moment and try again.'));
                         return;
                     }
                     if (res.statusCode !== 200) {
                         let errorBody = '';
-                        res.on('data', (chunk) => { errorBody += chunk.toString(); });
+                        res.on('data', (c) => { errorBody += c.toString(); });
                         res.on('end', () => {
-                            this.messages.pop();
                             try {
                                 const parsed = JSON.parse(errorBody);
                                 reject(new Error(`Groq API error (${res.statusCode}): ${parsed.error?.message || errorBody}`));
@@ -87,41 +147,15 @@ export class GroqAgent extends BaseAgent {
                         return;
                     }
 
-                    let fullResponse = '';
-                    let buffer = '';
+                    if (stream) {
+                        let fullResponse = '';
+                        let buffer = '';
 
-                    res.on('data', (chunk) => {
-                        buffer += chunk.toString();
-
-                        // SSE format: lines starting with "data: "
-                        const lines = buffer.split('\n');
-                        // Keep the last (possibly incomplete) line in the buffer
-                        buffer = lines.pop() || '';
-
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (!trimmed || !trimmed.startsWith('data: ')) continue;
-
-                            const data = trimmed.slice(6); // Remove "data: " prefix
-                            if (data === '[DONE]') continue;
-
-                            try {
-                                const json = JSON.parse(data);
-                                const token = json.choices?.[0]?.delta?.content;
-                                if (token) {
-                                    fullResponse += token;
-                                    if (!silent) process.stdout.write(token);
-                                }
-                            } catch {
-                                // Skip malformed JSON
-                            }
-                        }
-                    });
-
-                    res.on('end', () => {
-                        // Process any remaining buffer
-                        if (buffer.trim()) {
+                        res.on('data', (chunk) => {
+                            buffer += chunk.toString();
                             const lines = buffer.split('\n');
+                            buffer = lines.pop() || '';
+
                             for (const line of lines) {
                                 const trimmed = line.trim();
                                 if (!trimmed || !trimmed.startsWith('data: ')) continue;
@@ -134,26 +168,56 @@ export class GroqAgent extends BaseAgent {
                                         fullResponse += token;
                                         if (!silent) process.stdout.write(token);
                                     }
-                                } catch {
-                                    // Skip
+                                } catch { }
+                            }
+                        });
+
+                        res.on('end', () => {
+                            if (buffer.trim()) {
+                                for (const line of buffer.split('\n')) {
+                                    const trimmed = line.trim();
+                                    if (!trimmed || !trimmed.startsWith('data: ')) continue;
+                                    const data = trimmed.slice(6);
+                                    if (data === '[DONE]') continue;
+                                    try {
+                                        const json = JSON.parse(data);
+                                        const token = json.choices?.[0]?.delta?.content;
+                                        if (token) {
+                                            fullResponse += token;
+                                            if (!silent) process.stdout.write(token);
+                                        }
+                                    } catch { }
                                 }
                             }
-                        }
+                            resolve({ content: fullResponse, toolCalls: null });
+                        });
+                        res.on('error', reject);
+                    } else {
+                        let body = '';
+                        res.on('data', (c) => { body += c.toString(); });
+                        res.on('end', () => {
+                            try {
+                                const json = JSON.parse(body);
+                                const choice = json.choices?.[0];
+                                const toolCalls = choice?.message?.tool_calls;
+                                const content = choice?.message?.content || '';
 
-                        // Add the assistant response to conversation history
-                        if (fullResponse) {
-                            this.messages.push({ role: 'assistant', content: fullResponse });
-                        }
-                        resolve(fullResponse);
-                    });
-
-                    res.on('error', reject);
+                                if (toolCalls && toolCalls.length > 0) {
+                                    resolve({ content: '', toolCalls });
+                                } else {
+                                    if (content && !silent) process.stdout.write(content);
+                                    resolve({ content, toolCalls: null });
+                                }
+                            } catch (err) {
+                                reject(new Error('Failed to parse Groq API response'));
+                            }
+                        });
+                        res.on('error', reject);
+                    }
                 }
             );
 
             req.on('error', (err) => {
-                // Remove the user message we just added since the request failed
-                this.messages.pop();
                 if (err.code === 'ENOTFOUND' || err.code === 'ECONNREFUSED') {
                     reject(new Error('Cannot reach Groq API. Check your internet connection.'));
                 } else {
@@ -164,22 +228,6 @@ export class GroqAgent extends BaseAgent {
             req.write(body);
             req.end();
         });
-    }
-
-    /**
-     * Clear the conversation history.
-     */
-    clearHistory() {
-        this.messages = [];
-    }
-
-    /**
-     * Get the current conversation history length.
-     * @returns {{ turns: number, messages: number }}
-     */
-    getHistoryStats() {
-        const userMessages = this.messages.filter(m => m.role === 'user').length;
-        return { turns: userMessages, messages: this.messages.length };
     }
 
     /**

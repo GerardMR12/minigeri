@@ -1,15 +1,17 @@
 import https from 'https';
 import { BaseAgent } from './base.js';
+import { toGeminiTools, executeTool } from '../tools/index.js';
 
+/**
+ * Gemini API Agent
+ * Uses the Google Generative Language API with function calling.
+ */
 export class GeminiApiAgent extends BaseAgent {
     constructor(config = {}) {
         super('gemini-api', config);
         this.apiKey = config.apiKey || process.env.GOOGLE_API_KEY || '';
-        this.model = config.model || 'gemini-1.5-flash';
+        this.model = config.model || 'gemini-2.5-flash';
         this.baseUrl = config.baseUrl || 'https://generativelanguage.googleapis.com';
-
-        // Conversation history: array of { role: 'user'|'model', parts: [{text: string}] }
-        this.messages = [];
     }
 
     async send(message, options = {}) {
@@ -22,12 +24,87 @@ export class GeminiApiAgent extends BaseAgent {
         // Gemini expects alternating roles starting with 'user'
         this.messages.push({ role: 'user', parts: [{ text: message }] });
 
-        const body = JSON.stringify({
-            contents: this.messages,
-        });
+        // Build file-tree system context
+        const systemContext = this.buildSystemContext();
 
+        // Shared tools in Gemini format
+        const tools = toGeminiTools();
+
+        // Tool-calling loop
+        const MAX_TOOL_ROUNDS = 5;
+
+        for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+            const result = await this._callApi(this.messages, {
+                systemInstruction: systemContext,
+                tools,
+                silent,
+            });
+
+            // If the model returned function calls, execute them and loop
+            if (result.functionCalls && result.functionCalls.length > 0) {
+                // Add the model's response with function calls to history
+                this.messages.push({
+                    role: 'model',
+                    parts: result.functionCalls.map((fc) => ({
+                        functionCall: { name: fc.name, args: fc.args },
+                    })),
+                });
+
+                // Execute tools and add function responses
+                const responseParts = [];
+                for (const fc of result.functionCalls) {
+                    if (!silent) this.logToolCall(fc.name, fc.args || {});
+
+                    const toolResult = executeTool(fc.name, fc.args || {});
+                    responseParts.push({
+                        functionResponse: {
+                            name: fc.name,
+                            response: { result: toolResult },
+                        },
+                    });
+                }
+
+                this.messages.push({ role: 'user', parts: responseParts });
+                continue;
+            }
+
+            // No function calls — final text response
+            if (result.text) {
+                if (!silent) process.stdout.write(result.text);
+                this.messages.push({ role: 'model', parts: [{ text: result.text }] });
+            }
+            return result.text;
+        }
+
+        return '';
+    }
+
+    /**
+     * Get history stats — Gemini uses 'model' instead of 'assistant'.
+     */
+    getHistoryStats() {
+        return super.getHistoryStats('user');
+    }
+
+    /**
+     * Call the Gemini API once (non-streaming for reliable function-call parsing).
+     * @private
+     */
+    _callApi(contents, { systemInstruction, tools, silent = false }) {
         return new Promise((resolve, reject) => {
-            const url = new URL(`/v1beta/models/${this.model}:streamGenerateContent?key=${this.apiKey}`, this.baseUrl);
+            const body = JSON.stringify({
+                contents,
+                ...(systemInstruction
+                    ? { systemInstruction: { parts: [{ text: systemInstruction }] } }
+                    : {}),
+                ...(tools && tools.length > 0 ? { tools } : {}),
+            });
+
+            const url = new URL(
+                `/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`,
+                this.baseUrl
+            );
+
             const req = https.request(
                 {
                     hostname: url.hostname,
@@ -41,12 +118,16 @@ export class GeminiApiAgent extends BaseAgent {
                 (res) => {
                     if (res.statusCode !== 200) {
                         let errorBody = '';
-                        res.on('data', (c) => errorBody += c);
+                        res.on('data', (c) => (errorBody += c));
                         res.on('end', () => {
-                            this.messages.pop(); // Remove the user message
+                            this.messages.pop();
                             try {
                                 const parsed = JSON.parse(errorBody);
-                                reject(new Error(`Gemini API error (${res.statusCode}): ${parsed.error?.message || errorBody}`));
+                                reject(
+                                    new Error(
+                                        `Gemini API error (${res.statusCode}): ${parsed.error?.message || errorBody}`
+                                    )
+                                );
                             } catch {
                                 reject(new Error(`Gemini API error (${res.statusCode}): ${errorBody}`));
                             }
@@ -54,82 +135,46 @@ export class GeminiApiAgent extends BaseAgent {
                         return;
                     }
 
-                    let fullResponse = '';
-                    let buffer = '';
+                    let responseBody = '';
 
                     res.on('data', (chunk) => {
-                        buffer += chunk.toString();
-
-                        // Try to parse the buffer as an array of JSON objects sent progressively
-                        try {
-                            // Quick simplistic parsing for Gemini SSE streaming format
-                            // The stream chunks are usually arrays that we can extract content from
-                            const extractText = (str) => {
-                                const matches = str.match(/"text":\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g);
-                                return matches ? matches.map(m => JSON.parse('{' + m + '}').text).join('') : '';
-                            };
-
-                            // Let's just accumulate the text, but wait until the end to be safe if silent
-                            if (!silent) {
-                                // Extract and print diffs. Since this is complex with JSON chunks, 
-                                // we will just wait until 'end' for the history, but stream what we can parse.
-                                // A safe but noisy way is to print words as they arrive if possible.
-                                // For gemini API without heavy JSON parsers, we will aggregate it.
-                            }
-                        } catch { }
+                        responseBody += chunk.toString();
                     });
 
                     res.on('end', () => {
                         try {
-                            // Strip SSE framing if any, or parse the whole string as JSON array of objects
-                            // The stream format for Gemini often is an array of response chunks:
-                            // [
-                            //   { "candidates": [ ... ] },
-                            //   ...
-                            // ]
-                            let contentToParse = buffer.trim();
-                            // Sometimes it is sent as multiple JSON fragments without brackets
-                            // Just a naive regex to extract all "text" fields
-                            const jsonStrings = contentToParse.match(/"text":\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g) || [];
+                            const json = JSON.parse(responseBody);
+                            const candidate = json.candidates?.[0];
+                            const parts = candidate?.content?.parts || [];
 
-                            for (const jsonLine of jsonStrings) {
-                                try {
-                                    const parsedObj = JSON.parse('{' + jsonLine + '}');
-                                    if (parsedObj.text) {
-                                        fullResponse += parsedObj.text;
-                                    }
-                                } catch { }
+                            // Check for function calls
+                            const functionCalls = parts
+                                .filter((p) => p.functionCall)
+                                .map((p) => ({
+                                    name: p.functionCall.name,
+                                    args: p.functionCall.args || {},
+                                }));
+
+                            if (functionCalls.length > 0) {
+                                resolve({ text: '', functionCalls });
+                                return;
                             }
 
-                            // If regex parsing failed, try parsing the whole thing
-                            if (!fullResponse && contentToParse) {
-                                try {
-                                    const arr = JSON.parse(contentToParse);
-                                    if (Array.isArray(arr)) {
-                                        for (const item of arr) {
-                                            const text = item.candidates?.[0]?.content?.parts?.[0]?.text;
-                                            if (text) fullResponse += text;
-                                        }
-                                    } else if (arr.candidates) {
-                                        const text = arr.candidates[0]?.content?.parts?.[0]?.text;
-                                        if (text) fullResponse += text;
-                                    }
-                                } catch {
-                                    // If both fail, let's just log
-                                }
-                            }
+                            // Extract text
+                            const text = parts
+                                .filter((p) => p.text)
+                                .map((p) => p.text)
+                                .join('');
 
-                            if (fullResponse) {
-                                if (!silent) process.stdout.write(fullResponse);
-                                this.messages.push({ role: 'model', parts: [{ text: fullResponse }] });
-                                resolve(fullResponse);
+                            if (text) {
+                                resolve({ text, functionCalls: null });
                             } else {
                                 this.messages.pop();
                                 reject(new Error('No content returned from Gemini'));
                             }
                         } catch (err) {
                             this.messages.pop();
-                            reject(err);
+                            reject(new Error(`Failed to parse Gemini response: ${err.message}`));
                         }
                     });
                     res.on('error', reject);
@@ -145,16 +190,10 @@ export class GeminiApiAgent extends BaseAgent {
         });
     }
 
-    clearHistory() {
-        this.messages = [];
-    }
-    getHistoryStats() {
-        const userMessages = this.messages.filter(m => m.role === 'user').length;
-        return { turns: userMessages, messages: this.messages.length };
-    }
     async interactive() {
-        throw new Error('Interactive mode is not supported for Gemini API agent via CLI interface yet. Provide a prompt directly.');
+        throw new Error('Interactive mode is not supported for Gemini API agent. Provide a prompt directly.');
     }
+
     async isAvailable() {
         return !!this.apiKey;
     }

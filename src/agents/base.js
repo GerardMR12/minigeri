@@ -1,10 +1,24 @@
 /**
  * Base Agent class — all agents extend this.
+ *
+ * Provides shared helper methods for tool-equipped agents:
+ *   • buildSystemContext()  — loads instruction files from src/instructions/
+ *   • logToolCall()         — pretty-prints tool invocations to stdout
+ *   • clearHistory()        — clears conversation messages
+ *   • getHistoryStats()     — returns turn/message counts
  */
+import { loadAllInstructions } from '../utils/instructions.js';
+
 export class BaseAgent {
     constructor(name, config = {}) {
         this.name = name;
         this.config = config;
+
+        /**
+         * Conversation history.
+         * Format varies by provider but is always an array.
+         */
+        this.messages = [];
     }
 
     /**
@@ -31,5 +45,42 @@ export class BaseAgent {
      */
     async isAvailable() {
         return false;
+    }
+
+    // ── Shared helpers (used by tool-equipped agents) ────────────
+
+    /**
+     * Build a system message from instruction files in src/instructions/.
+     * @returns {string|null} The system context string, or null if empty.
+     */
+    buildSystemContext() {
+        return loadAllInstructions() || null;
+    }
+
+    /**
+     * Log a tool call to stdout (when not in silent mode).
+     * @param {string} toolName
+     * @param {object} args
+     */
+    logToolCall(toolName, args) {
+        const label = args.path || toolName || 'files';
+        process.stdout.write(`  📂 ${label}...\n`);
+    }
+
+    /**
+     * Clear the conversation history.
+     */
+    clearHistory() {
+        this.messages = [];
+    }
+
+    /**
+     * Get conversation history stats.
+     * @param {string} userRole - The role name for user messages (default: 'user')
+     * @returns {{ turns: number, messages: number }}
+     */
+    getHistoryStats(userRole = 'user') {
+        const userMessages = this.messages.filter((m) => m.role === userRole).length;
+        return { turns: userMessages, messages: this.messages.length };
     }
 }
