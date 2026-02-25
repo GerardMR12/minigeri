@@ -38,7 +38,7 @@ export function showHelp() {
     // ── Ollama ──
     console.log(colors.ollama.bold('  Ollama'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('[prompt]')}        ${colors.text('Talk to Ollama (local)')}`);
+    console.log(`  ${colors.ollama.bold('ollama')} ${colors.muted('[prompt]')}        ${colors.text('Chat with Ollama (keeps context)')}`);
     console.log(`                           ${colors.muted('No prompt → interactive mode')}`);
     console.log(`  ${colors.ollama.bold('ollama models')}           ${colors.text('List downloaded models')}`);
     console.log(`  ${colors.ollama.bold('ollama model')} ${colors.muted('[name]')}    ${colors.text('Show model info (current or specific)')}`);
@@ -46,6 +46,8 @@ export function showHelp() {
     console.log(`  ${colors.ollama.bold('ollama pull')} ${colors.muted('<name>')}     ${colors.text('Download a model')}`);
     console.log(`  ${colors.ollama.bold('ollama rm')} ${colors.muted('<name>')}       ${colors.text('Remove a local model')}`);
     console.log(`  ${colors.ollama.bold('ollama ps')}               ${colors.text('Show running models')}`);
+    console.log(`  ${colors.ollama.bold('ollama history')}          ${colors.text('View conversation history')}`);
+    console.log(`  ${colors.ollama.bold('ollama clear')}            ${colors.text('Reset conversation context')}`);
     console.log('');
 
     // ── WhatsApp ──

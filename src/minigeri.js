@@ -117,10 +117,23 @@ async function handleGemini(args, rl) {
     console.log('');
 }
 
+// Persistent Ollama agent — keeps conversation history alive across calls
+let ollamaAgent = null;
+let ollamaModelName = null;
+
+function getOllamaAgent() {
+    const agentConfig = getAgent('ollama');
+    // Recreate agent if model changed
+    if (!ollamaAgent || ollamaModelName !== agentConfig.model) {
+        ollamaAgent = createAgent('ollama', agentConfig);
+        ollamaModelName = agentConfig.model;
+    }
+    return { agent: ollamaAgent, agentConfig };
+}
+
 async function handleOllama(args, rl) {
     const subcommand = args[0]?.toLowerCase();
-    const agentConfig = getAgent('ollama');
-    const agent = createAgent('ollama', agentConfig);
+    const { agent, agentConfig } = getOllamaAgent();
 
     const available = await agent.isAvailable();
     if (!available) {
@@ -163,7 +176,6 @@ async function handleOllama(args, rl) {
             console.log(colors.muted('  ─────────────────────────────────────────────'));
             try {
                 const info = await agent.showModel(modelName);
-                // Indent each line for consistent formatting
                 const lines = info.split('\n');
                 for (const line of lines) {
                     console.log(`  ${colors.text(line)}`);
@@ -207,7 +219,11 @@ async function handleOllama(args, rl) {
             if (!config.agents.ollama) config.agents.ollama = {};
             config.agents.ollama.model = modelName;
             saveConfig(config);
-            console.log(`\n  ${colors.success(icons.check)} Active model set to ${colors.ollama.bold(modelName)}\n`);
+            // Force agent recreation on next call with the new model
+            ollamaAgent = null;
+            ollamaModelName = null;
+            console.log(`\n  ${colors.success(icons.check)} Active model set to ${colors.ollama.bold(modelName)}`);
+            console.log(colors.muted('  Conversation history has been reset.\n'));
             break;
         }
 
@@ -231,7 +247,7 @@ async function handleOllama(args, rl) {
             }
             rl.resume();
             rl.prompt();
-            return;  // early return because rl was paused
+            return;
         }
 
         // Remove a model
@@ -275,6 +291,41 @@ async function handleOllama(args, rl) {
             break;
         }
 
+        // Clear conversation history
+        case 'clear':
+        case 'reset': {
+            agent.clearHistory();
+            console.log(`\n  ${colors.success(icons.check)} Conversation history cleared\n`);
+            break;
+        }
+
+        // Show conversation history
+        case 'history':
+        case 'ctx': {
+            const stats = agent.getHistoryStats();
+            console.log(`\n  ${colors.ollama.bold('Conversation History')} ${colors.muted('—')} ${colors.ollama(agentConfig.model)}`);
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            if (stats.turns === 0) {
+                console.log(colors.muted('  No conversation yet. Send a prompt to start chatting.'));
+            } else {
+                console.log(colors.muted(`  ${stats.turns} turn(s), ${stats.messages} message(s)\n`));
+                for (const msg of agent.messages) {
+                    if (msg.role === 'user') {
+                        console.log(`  ${colors.accent.bold('You:')} ${colors.text(msg.content)}`);
+                    } else if (msg.role === 'assistant') {
+                        // Truncate long responses for the overview
+                        const preview = msg.content.length > 200
+                            ? msg.content.substring(0, 200) + '...'
+                            : msg.content;
+                        console.log(`  ${colors.ollama.bold('Ollama:')} ${colors.muted(preview)}`);
+                    }
+                    console.log('');
+                }
+            }
+            console.log('');
+            break;
+        }
+
         // No subcommand → interactive mode
         case undefined: {
             console.log(colors.ollama(`\n  ${icons.llama} Launching Ollama interactive mode (${agentConfig.model})...`));
@@ -289,17 +340,21 @@ async function handleOllama(args, rl) {
             console.log(colors.muted(`\n  ${icons.check} Back to minigeri\n`));
             rl.resume();
             rl.prompt();
-            return;  // early return because rl was paused
+            return;
         }
 
-        // Anything else → treat as a prompt
+        // Anything else → treat as a prompt (with conversation context)
         default: {
             const prompt = args.join(' ').trim();
-            console.log(colors.ollama(`\n  ${icons.llama} Asking Ollama (${agentConfig.model})...`));
+            const stats = agent.getHistoryStats();
+            const ctxLabel = stats.turns > 0
+                ? colors.muted(` (turn ${stats.turns + 1}, with context)`)
+                : '';
+            console.log(colors.ollama(`\n  ${icons.llama} Asking Ollama (${agentConfig.model})...`) + ctxLabel);
             console.log(colors.muted('  ─────────────────────────────────────────────\n'));
             try {
                 await agent.send(prompt);
-                console.log(colors.muted('\n  ─────────────────────────────────────────────'));
+                console.log(colors.muted('\n\n  ─────────────────────────────────────────────'));
             } catch (err) {
                 console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
             }
@@ -561,6 +616,7 @@ async function main() {
     const commandsList = [
         'claude', 'gemini',
         'ollama', 'ollama models', 'ollama model', 'ollama use', 'ollama pull', 'ollama rm', 'ollama ps',
+        'ollama clear', 'ollama history',
         'wa connect', 'wa send', 'wa status', 'wa disconnect',
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',

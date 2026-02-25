@@ -1,3 +1,4 @@
+import http from 'http';
 import { BaseAgent } from './base.js';
 import { execAgent, execInteractive } from '../executor.js';
 
@@ -6,18 +7,130 @@ export class OllamaAgent extends BaseAgent {
         super('ollama', config);
         this.command = config.command || 'ollama';
         this.model = config.model || 'llama3';
+        this.baseUrl = config.baseUrl || 'http://localhost:11434';
+
+        // Conversation history: array of { role: 'user'|'assistant'|'system', content: string }
+        this.messages = [];
     }
 
-    async send(message, context = {}) {
-        const args = ['run', this.model, message];
+    /**
+     * Send a message using the Ollama HTTP /api/chat endpoint.
+     * Maintains conversation history for multi-turn context.
+     * Streams the response token-by-token to stdout.
+     *
+     * @param {string} message - The user's prompt
+     * @returns {Promise<string>} The full assistant response
+     */
+    async send(message) {
+        // Add the user message to conversation history
+        this.messages.push({ role: 'user', content: message });
 
-        const result = await execAgent(this.command, args);
+        const body = JSON.stringify({
+            model: this.model,
+            messages: this.messages,
+            stream: true,
+        });
 
-        if (result.code !== 0) {
-            throw new Error(`Ollama exited with code ${result.code}: ${result.stderr}`);
-        }
+        return new Promise((resolve, reject) => {
+            const url = new URL('/api/chat', this.baseUrl);
 
-        return result.stdout.trim();
+            const req = http.request(
+                {
+                    hostname: url.hostname,
+                    port: url.port,
+                    path: url.pathname,
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(body),
+                    },
+                },
+                (res) => {
+                    let fullResponse = '';
+                    let buffer = '';
+
+                    res.on('data', (chunk) => {
+                        buffer += chunk.toString();
+
+                        // Ollama streams newline-delimited JSON objects
+                        const lines = buffer.split('\n');
+                        // Keep the last (possibly incomplete) line in the buffer
+                        buffer = lines.pop() || '';
+
+                        for (const line of lines) {
+                            if (!line.trim()) continue;
+                            try {
+                                const json = JSON.parse(line);
+                                if (json.message?.content) {
+                                    const token = json.message.content;
+                                    fullResponse += token;
+                                    process.stdout.write(token);
+                                }
+                                if (json.error) {
+                                    reject(new Error(json.error));
+                                    return;
+                                }
+                            } catch {
+                                // Skip malformed JSON lines
+                            }
+                        }
+                    });
+
+                    res.on('end', () => {
+                        // Process any remaining buffer
+                        if (buffer.trim()) {
+                            try {
+                                const json = JSON.parse(buffer);
+                                if (json.message?.content) {
+                                    const token = json.message.content;
+                                    fullResponse += token;
+                                    process.stdout.write(token);
+                                }
+                            } catch {
+                                // Skip
+                            }
+                        }
+
+                        // Add the assistant response to conversation history
+                        if (fullResponse) {
+                            this.messages.push({ role: 'assistant', content: fullResponse });
+                        }
+                        resolve(fullResponse);
+                    });
+
+                    res.on('error', reject);
+                }
+            );
+
+            req.on('error', (err) => {
+                // Remove the user message we just added since the request failed
+                this.messages.pop();
+                if (err.code === 'ECONNREFUSED') {
+                    reject(new Error('Cannot connect to Ollama. Is the Ollama server running? (try: ollama serve)'));
+                } else {
+                    reject(err);
+                }
+            });
+
+            req.write(body);
+            req.end();
+        });
+    }
+
+    /**
+     * Clear the conversation history.
+     */
+    clearHistory() {
+        this.messages = [];
+    }
+
+    /**
+     * Get the current conversation history length.
+     * @returns {{ turns: number, messages: number }}
+     */
+    getHistoryStats() {
+        const userMessages = this.messages.filter(m => m.role === 'user').length;
+        return { turns: userMessages, messages: this.messages.length };
     }
 
     async interactive() {
