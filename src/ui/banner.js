@@ -2,15 +2,13 @@ import chalk from 'chalk';
 import { colors, drawBox, icons } from './theme.js';
 
 export function showBanner(version = '1.0.0') {
-    const inv = chalk.hex('#10B981'); // Emerald green martian
-
     const art = `
-${colors.primary(' ███╗   ███╗ ██╗ ███╗   ██╗ ██╗  ██████╗  ███████╗ ██████╗  ██╗')}    ${inv('  █         █  ')}
-${colors.primary(' ████╗ ████║ ██║ ████╗  ██║ ██║ ██╔════╝  ██╔════╝ ██╔══██╗ ██║')}    ${inv('   █       █   ')}
-${colors.highlight(' ██╔████╔██║ ██║ ██╔██╗ ██║ ██║ ██║  ███╗ █████╗   ██████╔╝ ██║')}    ${inv('  ███████████  ')}
-${colors.highlight(' ██║╚██╔╝██║ ██║ ██║╚██╗██║ ██║ ██║   ██║ ██╔══╝   ██╔══██╗ ██║')}    ${inv(' ██  █████  ██ ')}
-${colors.secondary(' ██║ ╚═╝ ██║ ██║ ██║ ╚████║ ██║ ╚██████╔╝ ███████╗ ██║  ██║ ██║')}    ${inv('███████████████')}
-${colors.secondary(' ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝ ╚═╝  ╚═════╝  ╚══════╝ ╚═╝  ╚═╝ ╚═╝')}    ${inv('█  █       █  █')}
+${colors.primary(' ███╗   ███╗ ██╗ ███╗   ██╗ ██╗  ██████╗  ███████╗ ██████╗  ██╗')}    ${colors.invader('  █         █  ')}
+${colors.primary(' ████╗ ████║ ██║ ████╗  ██║ ██║ ██╔════╝  ██╔════╝ ██╔══██╗ ██║')}    ${colors.invader('   █       █   ')}
+${colors.highlight(' ██╔████╔██║ ██║ ██╔██╗ ██║ ██║ ██║  ███╗ █████╗   ██████╔╝ ██║')}    ${colors.invader('  ███████████  ')}
+${colors.highlight(' ██║╚██╔╝██║ ██║ ██║╚██╗██║ ██║ ██║   ██║ ██╔══╝   ██╔══██╗ ██║')}    ${colors.invader(' ██  █████  ██ ')}
+${colors.secondary(' ██║ ╚═╝ ██║ ██║ ██║ ╚████║ ██║ ╚██████╔╝ ███████╗ ██║  ██║ ██║')}    ${colors.invader('███████████████')}
+${colors.secondary(' ╚═╝     ╚═╝ ╚═╝ ╚═╝  ╚═══╝ ╚═╝  ╚═════╝  ╚══════╝ ╚═╝  ╚═╝ ╚═╝')}    ${colors.invader('█  █       █  █')}
 `;
 
     console.log(art);

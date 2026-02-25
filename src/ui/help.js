@@ -66,12 +66,14 @@ export function showHelp() {
     // ── System ──
     console.log(colors.accent.bold('  System'));
     console.log(colors.muted('  ─────────────────────────────────────────────'));
-    console.log(`  ${colors.accent.bold('folder')}                 ${colors.text('Show current working directory')}`);
-    console.log(`  ${colors.accent.bold('cd <dir>')}               ${colors.text('Change current directory')}`);
-    console.log(`  ${colors.accent.bold('status')}                 ${colors.text('Show all services status')}`);
-    console.log(`  ${colors.accent.bold('help')}                   ${colors.text('Show this help')}`);
-    console.log(`  ${colors.accent.bold('clear')}                  ${colors.text('Clear the screen')}`);
-    console.log(`  ${colors.accent.bold('exit')}                   ${colors.text('Quit minigeri')}`);
+    console.log(`  ${colors.accent.bold('theme list')}               ${colors.text('List available themes')}`);
+    console.log(`  ${colors.accent.bold('theme <id>')}               ${colors.text('Set the terminal theme')}`);
+    console.log(`  ${colors.accent.bold('folder')}                   ${colors.text('Show current working directory')}`);
+    console.log(`  ${colors.accent.bold('cd <dir>')}                 ${colors.text('Change current directory')}`);
+    console.log(`  ${colors.accent.bold('status')}                   ${colors.text('Show all services status')}`);
+    console.log(`  ${colors.accent.bold('help')}                     ${colors.text('Show this help')}`);
+    console.log(`  ${colors.accent.bold('clear')}                    ${colors.text('Clear the screen')}`);
+    console.log(`  ${colors.accent.bold('exit')}                     ${colors.text('Quit minigeri')}`);
     console.log('');
 
     // ── Tips ──

@@ -7,11 +7,13 @@ import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
 import { readFileSync, existsSync, statSync } from 'fs';
 
-import { colors, icons } from './ui/theme.js';
+import chalk from 'chalk';
+
+import { colors, icons, setTheme, palettes } from './ui/theme.js';
 import { showBanner } from './ui/banner.js';
 import { showHelp } from './ui/help.js';
 import { createAgent, listAgentNames } from './agents/index.js';
-import { loadConfig, getAgent } from './config.js';
+import { loadConfig, getAgent, saveConfig } from './config.js';
 import { waConnect, waSend, waStatus, waDisconnect } from './services/whatsapp.js';
 import {
     slackConnect, slackAutoConnect, slackSend, slackRead,
@@ -28,6 +30,12 @@ const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
 
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+
+// Initialize theme
+const currentConfig = loadConfig();
+if (currentConfig.theme) {
+    setTheme(currentConfig.theme);
+}
 
 // ─── Command Handlers ─────────────────────────────────────────────
 
@@ -242,6 +250,36 @@ async function handleFolder() {
     console.log('');
 }
 
+async function handleTheme(args, rl) {
+    const subcommand = args[0]?.toLowerCase();
+
+    if (subcommand === 'list') {
+        console.log(`\n  ${colors.primary.bold('Available Themes')}`);
+        console.log(colors.muted('  ─────────────────────────────────────────────'));
+        for (const [key, palette] of Object.entries(palettes)) {
+            const isCurrent = (loadConfig().theme || 'default') === key;
+            const marker = isCurrent ? colors.success(icons.check) : ' ';
+            const preview = chalk.hex(palette.primary)('■') + ' ' +
+                chalk.hex(palette.secondary)('■') + ' ' +
+                chalk.hex(palette.accent)('■');
+            console.log(`  ${marker} ${colors.text(key.padEnd(12))} ${preview}`);
+        }
+        console.log('');
+    } else if (subcommand && Object.keys(palettes).includes(subcommand)) {
+        setTheme(subcommand);
+        const config = loadConfig();
+        config.theme = subcommand;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Theme updated to ${colors.primary.bold(subcommand)}\n`);
+        if (rl) {
+            rl.setPrompt(colors.primary('  minigeri ▸ '));
+        }
+    } else {
+        console.log(`\n  ${colors.warning('Usage:')} ${colors.primary('theme list')} or ${colors.primary('theme <theme_id>')}`);
+        console.log(`  ${colors.muted('Example:')} theme ocean\n`);
+    }
+}
+
 async function handleStatus() {
     const config = loadConfig();
     const agentNames = listAgentNames();
@@ -323,7 +361,7 @@ async function main() {
         'wa connect', 'wa send', 'wa status', 'wa disconnect',
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
-        'status', 'help', 'clear', 'exit', 'quit', 'folder', 'cd',
+        'status', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list',
     ].sort();
 
     const rl = readline.createInterface({
@@ -427,6 +465,10 @@ async function main() {
                     console.log('');
                     break;
                 }
+
+                case 'theme':
+                    await handleTheme(args, rl);
+                    break;
 
                 case 'folder':
                     await handleFolder();

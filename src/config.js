@@ -27,6 +27,7 @@ const DEFAULT_CONFIG = {
         maxEntries: 100,
         saveHistory: true,
     },
+    theme: 'default',
 };
 
 export function ensureConfigDir() {
