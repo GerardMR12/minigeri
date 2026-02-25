@@ -12,7 +12,8 @@
     "start": "node src/minigeri.js",
     "minigeri": "node src/minigeri.js",
     "cli": "node src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "node -e \"const fs=require('fs'); if(!fs.existsSync('.env') && fs.existsSync('.env.example')) fs.copyFileSync('.env.example', '.env')\""
   },
   "keywords": [
     "cli",

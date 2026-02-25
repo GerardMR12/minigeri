@@ -4,23 +4,32 @@ Your AI command center. A unified terminal interface that lets you talk to AI ag
 
 ---
 
-## Quick Start
+## Installation
 
+### 1. Quick Install (Bash/Zsh)
+Run this command to install MiniGeri and its dependencies globally on Linux or macOS:
+```bash
+curl -sSL https://raw.githubusercontent.com/GerardMR12/minigeri/main/scripts/install.sh | bash
+```
+
+### 2. Manual Installation
+If you prefer to clone it manually or for development:
 ```bash
 # 1. Clone and install
-cd cli-bot
+git clone https://github.com/GerardMR12/minigeri.git
+cd minigeri
 npm install
 
-# 2. Set up your environment
-cp .env.example .env
-# Edit .env with your tokens (see setup sections below)
-
-# 3. Link the command globally
+# 2. Link the command globally
 npm link
 
-# 4. Launch!
+# 3. Launch!
 minigeri
 ```
+
+---
+
+## Quick Start
 
 ---
 
@@ -305,8 +314,10 @@ minigeri ▸ tg disconnect
 
 **Tips:**
 - Bots can be added to Telegram groups too. The bot will see messages if it's mentioned or if it's made an admin.
-- **AI Agent Triggers**: If a user sends `/gemini <prompt>` or `/claude <prompt>` to your bot, `minigeri` will automatically forward the prompt to the respective AI agent and reply to the user with the generated response!
-  > ⚠️ **Warning:** The AI agents are run with auto-approval flags enabled (`-y` for Gemini, `--dangerously-skip-permissions` for Claude) so that they can edit files without getting stuck on confirmation prompts. **Anyone who can message your bot can ask it to execute arbitrary commands or file operations on your machine.** Keep your bot's username private!
+- **🔒 Security**: Set `TELEGRAM_ALLOWED_USERS` in your `.env` to restrict who can use the bot. Without it, **anyone** who messages your bot can use your AI keys and run commands!
+   > 📌 **Tip:** Message `@userinfobot` on Telegram to get your user ID, then add it: `TELEGRAM_ALLOWED_USERS=123456789`. For multiple users: `TELEGRAM_ALLOWED_USERS=111111,222222`
+- **AI Agent Triggers**: If an allowed user sends `/gemini <prompt>` or `/claude <prompt>` to your bot, `minigeri` will automatically forward the prompt to the respective AI agent and reply to the user with the generated response!
+   > ⚠️ **Warning:** The AI agents are run with auto-approval flags enabled (`-y` for Gemini, `--dangerously-skip-permissions` for Claude) so that they can edit files without getting stuck on confirmation prompts. **Only add trusted user IDs to `TELEGRAM_ALLOWED_USERS`.**
 - You can send Markdown formatting in your Telegram messages! (e.g., `tg send 1234567 **bold text**`).
 
 
@@ -318,6 +329,7 @@ minigeri ▸ tg disconnect
 |---|---|---|
 | `SLACK_BOT_TOKEN` | For Slack | Slack Bot User OAuth Token (`xoxb-...`) |
 | `TELEGRAM_BOT_TOKEN` | For Telegram | Telegram Bot Token (`123456789:ABC...`) |
+| `TELEGRAM_ALLOWED_USERS` | Recommended | Comma-separated Telegram user IDs allowed to use the bot |
 | `DEFAULT_AGENT` | No | Default AI agent: `claude-code` or `gemini-cli` (default: `claude-code`) |
 | `CLAUDE_CODE_PATH` | No | Path to Claude Code binary if not in PATH (default: `claude`) |
 | `GEMINI_CLI_PATH` | No | Path to Gemini CLI binary if not in PATH (default: `gemini`) |

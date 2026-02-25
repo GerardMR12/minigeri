@@ -12,6 +12,17 @@ let botInfoCache = null;
 let recentChats = new Map(); // chatId → { name, type }
 
 /**
+ * Parse the allowed Telegram user IDs from the environment.
+ * Returns null if not set (open access — NOT recommended).
+ * Returns a Set of allowed user ID strings if set.
+ */
+function getAllowedUsers() {
+    const raw = process.env.TELEGRAM_ALLOWED_USERS;
+    if (!raw || raw.trim() === '') return null;
+    return new Set(raw.split(',').map(id => id.trim()).filter(Boolean));
+}
+
+/**
  * Connect the Telegram bot and start polling for messages.
  */
 export async function tgConnect() {
@@ -41,6 +52,15 @@ export async function tgConnect() {
         console.log(colors.telegram(`  ${icons.check} Telegram bot connected!`));
         console.log(colors.muted(`    Bot: @${botInfoCache.username} (${botInfoCache.first_name})`));
         console.log(colors.muted(`    Bot ID: ${botInfoCache.id}`));
+
+        const allowed = getAllowedUsers();
+        if (allowed) {
+            console.log(colors.muted(`    🔒 Access restricted to ${allowed.size} allowed user(s)`));
+        } else {
+            console.log(colors.warning(`    ⚠️  TELEGRAM_ALLOWED_USERS not set — anyone can use this bot!`));
+            console.log(colors.muted(`    Set TELEGRAM_ALLOWED_USERS=<your_user_id> in .env for security`));
+        }
+
         console.log(colors.muted(`    Listening for incoming messages...`));
 
         // Handle incoming messages
@@ -142,6 +162,12 @@ export function tgStatus() {
         console.log(colors.telegram(`  ${icons.bullet} Telegram: Connected`));
         console.log(colors.muted(`    Bot: @${botInfoCache.username} (${botInfoCache.first_name})`));
         console.log(colors.muted(`    Recent chats: ${recentChats.size}`));
+        const allowed = getAllowedUsers();
+        if (allowed) {
+            console.log(colors.muted(`    🔒 Restricted to ${allowed.size} allowed user(s)`));
+        } else {
+            console.log(colors.warning(`    ⚠️  Open access (set TELEGRAM_ALLOWED_USERS in .env)`));
+        }
     } else if (process.env.TELEGRAM_BOT_TOKEN) {
         console.log(colors.warning(`  ${icons.circle} Telegram: Token set but not connected`));
     } else {
@@ -175,7 +201,27 @@ async function handleIncomingMessage(msg, botInstance) {
     const chatId = msg.chat.id;
     const chatName = msg.chat.title || msg.chat.first_name || msg.chat.username || String(chatId);
     const sender = msg.from.first_name || msg.from.username || 'Unknown';
+    const senderId = String(msg.from.id);
     const chatType = msg.chat.type;
+
+    // ─── Access Control ───────────────────────────────────────────
+    const allowed = getAllowedUsers();
+    if (allowed && !allowed.has(senderId)) {
+        console.log('');
+        console.log(colors.warning(`  🚫 Unauthorized Telegram message blocked`));
+        console.log(colors.muted(`     From: ${sender} (user ID: ${senderId}, chat: ${chatId})`));
+        console.log(colors.muted(`     Text: ${msg.text || '[non-text]'}`));
+        console.log(colors.muted(`     Add this ID to TELEGRAM_ALLOWED_USERS in .env to allow access`));
+        console.log('');
+        process.stdout.write(colors.primary('  minigeri ▸ '));
+
+        try {
+            await botInstance.sendMessage(chatId, '🔒 Access denied. You are not authorized to use this bot.');
+        } catch {
+            // Ignore send errors for unauthorized users
+        }
+        return;
+    }
 
     recentChats.set(chatId.toString(), {
         name: chatName,

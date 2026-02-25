@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { readFileSync } from 'fs';
+import { spawn } from 'child_process';
 
 import { startChat } from './commands/chat.js';
 import { showStatus, setDefaultAgent } from './commands/status.js';
