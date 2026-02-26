@@ -65,15 +65,29 @@ async function handleClaude(args, rl) {
     const isApi = config.claudeMode === 'api';
     const agentName = isApi ? 'claude-api' : 'claude-code';
 
+    // For API mode, check the key is set before even creating the agent
+    if (isApi) {
+        const apiKey = config.agents?.['claude-api']?.apiKey || process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) {
+            console.log(colors.error(`\n  ${icons.cross} ANTHROPIC_API_KEY is not set.`));
+            console.log(colors.muted('  Set it with: ') + colors.primary('config set ANTHROPIC_API_KEY sk-...'));
+            console.log(colors.muted('  Or switch to CLI mode: ') + colors.claude('claude mode cli') + '\n');
+            return;
+        }
+    }
+
     const agentConfig = getAgent(agentName);
     const agent = createAgent(agentName, agentConfig);
 
     const available = await agent.isAvailable();
     if (!available) {
         if (isApi) {
-            console.log(colors.error(`  ${icons.cross} ANTHROPIC_API_KEY is not set.`));
+            console.log(colors.error(`\n  ${icons.cross} ANTHROPIC_API_KEY is not set or invalid.`));
+            console.log(colors.muted('  Set it with: ') + colors.primary('config set ANTHROPIC_API_KEY sk-...') + '\n');
         } else {
-            console.log(colors.error(`  ${icons.cross} Claude Code is not installed or not in PATH`));
+            console.log(colors.error(`\n  ${icons.cross} Claude Code is not installed or not in PATH.`));
+            console.log(colors.muted('  Install it from: ') + colors.text('https://docs.anthropic.com/en/docs/claude-code'));
+            console.log(colors.muted('  Or switch to API mode: ') + colors.claude('claude mode api') + '\n');
         }
         return;
     }
@@ -126,15 +140,28 @@ async function handleGemini(args, rl) {
     const isApi = config.geminiMode === 'api';
     const agentName = isApi ? 'gemini-api' : 'gemini-cli';
 
+    // For API mode, check the key is set before even creating the agent
+    if (isApi) {
+        const apiKey = config.agents?.['gemini-api']?.apiKey || process.env.GOOGLE_API_KEY;
+        if (!apiKey) {
+            console.log(colors.error(`\n  ${icons.cross} GOOGLE_API_KEY is not set.`));
+            console.log(colors.muted('  Set it with: ') + colors.primary('config set GOOGLE_API_KEY ...'));
+            console.log(colors.muted('  Or switch to CLI mode: ') + colors.gemini('gemini mode cli') + '\n');
+            return;
+        }
+    }
+
     const agentConfig = getAgent(agentName);
     const agent = createAgent(agentName, agentConfig);
 
     const available = await agent.isAvailable();
     if (!available) {
         if (isApi) {
-            console.log(colors.error(`  ${icons.cross} GOOGLE_API_KEY is not set.`));
+            console.log(colors.error(`\n  ${icons.cross} GOOGLE_API_KEY is not set or invalid.`));
+            console.log(colors.muted('  Set it with: ') + colors.primary('config set GOOGLE_API_KEY ...') + '\n');
         } else {
-            console.log(colors.error(`  ${icons.cross} Gemini CLI is not installed or not in PATH`));
+            console.log(colors.error(`\n  ${icons.cross} Gemini CLI is not installed or not in PATH.`));
+            console.log(colors.muted('  Or switch to API mode: ') + colors.gemini('gemini mode api') + '\n');
         }
         return;
     }
