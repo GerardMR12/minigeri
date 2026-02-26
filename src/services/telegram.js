@@ -26,13 +26,23 @@ function getAllowedUsers() {
 }
 
 /**
+ * Check if a token looks like a valid Telegram bot token.
+ * Valid format: <digits>:<alphanumeric+special>  (e.g. 123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw)
+ * Rejects placeholder values like "your-telegram-bot-token-here".
+ */
+function isValidTokenFormat(token) {
+    if (!token || typeof token !== 'string') return false;
+    return /^\d+:[A-Za-z0-9_-]+$/.test(token.trim());
+}
+
+/**
  * Connect the Telegram bot and start polling for messages.
  */
 export async function tgConnect() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
 
-    if (!token) {
-        console.log(colors.error(`  ${icons.cross} TELEGRAM_BOT_TOKEN not set in .env`));
+    if (!token || !isValidTokenFormat(token)) {
+        console.log(colors.error(`  ${icons.cross} TELEGRAM_BOT_TOKEN not set or invalid in .env`));
         console.log(colors.muted('  1. Open Telegram and message @BotFather'));
         console.log(colors.muted('  2. Send /newbot and follow the prompts'));
         console.log(colors.muted('  3. Copy the bot token'));
@@ -77,6 +87,11 @@ export async function tgConnect() {
         });
 
     } catch (err) {
+        // Stop polling if it was already started before the failure
+        if (bot) {
+            try { await bot.stopPolling(); } catch { /* ignore */ }
+            bot = null;
+        }
         isConnected = false;
         console.log(colors.error(`  ${icons.cross} Telegram connection failed: ${err.message}`));
     }
@@ -84,24 +99,29 @@ export async function tgConnect() {
 
 /**
  * Auto-connect if token is available (called on startup).
+ * Skips auto-connect if the token is missing or looks like a placeholder.
  */
 export async function tgAutoConnect() {
-    if (process.env.TELEGRAM_BOT_TOKEN && !isConnected) {
-        try {
-            const token = process.env.TELEGRAM_BOT_TOKEN;
-            bot = new TelegramBot(token, { polling: true });
-            botInfoCache = await bot.getMe();
-            isConnected = true;
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token || !isValidTokenFormat(token) || isConnected) return;
 
-            // Set up message listener silently
-            bot.on('message', (msg) => handleIncomingMessage(msg, bot));
+    try {
+        bot = new TelegramBot(token, { polling: true });
+        botInfoCache = await bot.getMe();
+        isConnected = true;
 
-            bot.on('polling_error', () => { }); // Suppress in auto-connect
+        // Set up message listener silently
+        bot.on('message', (msg) => handleIncomingMessage(msg, bot));
 
-        } catch {
-            // Silent fail on auto-connect
-            isConnected = false;
+        bot.on('polling_error', () => { }); // Suppress in auto-connect
+
+    } catch {
+        // Token exists but is invalid or bot was deleted — stop polling and clean up
+        if (bot) {
+            try { bot.stopPolling(); } catch { /* ignore */ }
+            bot = null;
         }
+        isConnected = false;
     }
 }
 
