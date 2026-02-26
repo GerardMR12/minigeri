@@ -14,7 +14,7 @@ import { colors, icons, setTheme, palettes } from './ui/theme.js';
 import { showBanner } from './ui/banner.js';
 import { showHelp } from './ui/help.js';
 import { createAgent, listAgentNames } from './agents/index.js';
-import { loadConfig, getAgent, saveConfig } from './config.js';
+import { loadConfig, getAgent, saveConfig, syncConfigToEnv } from './config.js';
 import { waConnect, waSend, waStatus, waDisconnect } from './services/whatsapp.js';
 import {
     slackConnect, slackAutoConnect, slackSend, slackRead,
@@ -31,6 +31,7 @@ import { registerCommand } from './tools/command-runner.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: join(__dirname, '..', '.env') });
+syncConfigToEnv();
 
 const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
@@ -595,7 +596,7 @@ async function handleOctopus(args, rl) {
     octopusState = { agent, label, colorFn, target };
 
     // Switch prompt to octopus style
-    rl.setPrompt(`  ${colors.primary(icons.octopus + ' octopus')} ${colors.primary('▸')} ${colorFn(target)} ${colorFn('▸')} `);
+    rl.setPrompt(getPrompt());
 }
 
 async function handleWhatsApp(args) {
@@ -755,7 +756,7 @@ async function handleTheme(args, rl) {
         saveConfig(config);
         console.log(`\n  ${colors.success(icons.check)} Theme updated to ${colors.primary.bold(subcommand)}\n`);
         if (rl) {
-            rl.setPrompt(colors.primary('  minigeri ▸ '));
+            rl.setPrompt(getPrompt());
         }
     } else {
         console.log(`\n  ${colors.warning('Usage:')} ${colors.primary('theme list')} or ${colors.primary('theme <theme_id>')}`);
@@ -764,6 +765,61 @@ async function handleTheme(args, rl) {
 }
 
 // ─── Status & Shell ───────────────────────────────────────────────
+
+async function handleConfig(args) {
+    const subcommand = args[0]?.toLowerCase();
+
+    if (subcommand === 'set') {
+        const key = args[1]?.toUpperCase();
+        const value = args[2];
+
+        if (!key || !value) {
+            console.log(colors.warning(`\n  Usage: ${colors.primary('config set <KEY> <VALUE>')}`));
+            console.log(colors.muted('  Example: config set ANTHROPIC_API_KEY sk-...\n'));
+            return;
+        }
+
+        const config = loadConfig();
+        
+        // Map common env keys to config structure
+        if (key === 'ANTHROPIC_API_KEY') {
+            config.agents['claude-api'].apiKey = value;
+        } else if (key === 'GOOGLE_API_KEY') {
+            config.agents['gemini-api'].apiKey = value;
+        } else if (key === 'GROQ_API_KEY') {
+            config.agents['groq'].apiKey = value;
+        } else if (key === 'SLACK_BOT_TOKEN') {
+            config.slackBotToken = value;
+        } else if (key === 'TELEGRAM_BOT_TOKEN') {
+            config.telegramBotToken = value;
+        } else {
+            // Generic setting
+            config[args[1]] = value;
+        }
+
+        saveConfig(config);
+        syncConfigToEnv();
+        console.log(`\n  ${colors.success(icons.check)} Configuration updated: ${colors.primary(key)} set.\n`);
+        return;
+    }
+
+    if (subcommand === 'list' || subcommand === 'show') {
+        const config = loadConfig();
+        console.log(`\n  ${colors.primary.bold('Current Configuration')}`);
+        console.log(colors.muted('  ─────────────────────────────────────────────'));
+        
+        console.log(`  ${colors.text('Claude API Key:')}   ${config.agents['claude-api']?.apiKey ? '********' : colors.muted('not set')}`);
+        console.log(`  ${colors.text('Gemini API Key:')}   ${config.agents['gemini-api']?.apiKey ? '********' : colors.muted('not set')}`);
+        console.log(`  ${colors.text('Groq API Key:')}     ${config.agents['groq']?.apiKey ? '********' : colors.muted('not set')}`);
+        console.log(`  ${colors.text('Slack Token:')}      ${config.slackBotToken ? '********' : colors.muted('not set')}`);
+        console.log(`  ${colors.text('Telegram Token:')}   ${config.telegramBotToken ? '********' : colors.muted('not set')}`);
+        console.log('');
+        return;
+    }
+
+    console.log(`\n  ${colors.warning('Usage:')} ${colors.primary('config <set|list>')}`);
+    console.log(colors.muted('  Example: ') + colors.text('config set ANTHROPIC_API_KEY sk-...\n'));
+}
 
 async function handleStatus() {
     const config = loadConfig();
@@ -822,6 +878,41 @@ function handleShellCommand(cmd) {
         });
     });
 }
+
+function getPrompt() {
+    if (octopusState) {
+        const { target, colorFn } = octopusState;
+        return `  ${colors.primary(icons.octopus + ' octopus')} ${colors.primary('▸')} ${colorFn(target)} ${colorFn('▸')} `;
+    }
+
+    return `${colors.primary('  minigeri')} ${colors.primary('▸ ')}`;
+}
+
+function changeDirectory(target, rl) {
+    const dir = target || process.env.HOME || process.env.USERPROFILE || '/';
+    try {
+        const resolved = resolve(process.cwd(), dir.replace(/^~(?=$|\/|\\)/, process.env.HOME || process.env.USERPROFILE || ''));
+        process.chdir(resolved);
+
+        const cwd = process.cwd();
+        const home = process.env.HOME || process.env.USERPROFILE;
+        let displayPath = cwd;
+        if (home && cwd.startsWith(home)) {
+            displayPath = '~' + cwd.slice(home.length).replace(/\\/g, '/');
+        }
+
+        const pathWithSlash = displayPath.endsWith('/') ? displayPath : `${displayPath}/`;
+        console.log(colors.muted(`  changed to ${pathWithSlash}`));
+
+        if (rl) {
+            rl.setPrompt(getPrompt());
+        }
+        return true;
+    } catch (err) {
+        console.log(colors.error(`  ${icons.cross} Error: ${err.message}`));
+        return false;
+    }
+}
 // ─── Register commands for AI agent tool use ─────────────────────
 // These registrations let agents execute minigeri commands via run_command.
 // Handlers that need `rl` receive a null (they only use rl for interactive mode).
@@ -837,11 +928,13 @@ registerCommand('tg', (args) => handleTelegram(args));
 registerCommand('ngrok', (args) => handleNgrok(args));
 registerCommand('folder', () => handleFolder());
 registerCommand('status', () => handleStatus());
+registerCommand('config', (args) => handleConfig(args));
 registerCommand('theme', (args) => handleTheme(args, null));
 registerCommand('cd', (args) => {
     const dir = args.join(' ') || process.env.HOME || '/';
     try {
-        process.chdir(dir);
+        const resolved = resolve(process.cwd(), dir.replace(/^~(?=$|\/|\\)/, process.env.HOME || process.env.USERPROFILE || ''));
+        process.chdir(resolved);
         return `Changed directory to ${process.cwd()}`;
     } catch (err) {
         return `Error: ${err.message}`;
@@ -884,13 +977,13 @@ async function main() {
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
         'ngrok', 'ngrok stop', 'ngrok status',
-        'status', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list',
+        'status', 'config set', 'config list', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list',
     ].sort();
 
     const rl = readline.createInterface({
         input: process.stdin,
         output: process.stdout,
-        prompt: colors.primary('  minigeri ▸ '),
+        prompt: getPrompt(),
         completer: (line) => {
             const hits = commandsList.filter((c) => c.startsWith(line.trim()));
             return [hits.length ? hits : commandsList, line];
@@ -1071,7 +1164,7 @@ async function main() {
             if (input.toLowerCase() === '/exit') {
                 console.log(colors.muted(`\n  ${icons.check} Leaving Octopus Mode\n`));
                 octopusState = null;
-                rl.setPrompt(colors.primary('  minigeri ▸ '));
+                rl.setPrompt(getPrompt());
                 isExecuting = false;
                 rl.prompt();
                 return;
@@ -1137,12 +1230,7 @@ async function main() {
 
                 // ── System ──
                 case 'cd': {
-                    const dir = args.join(' ') || process.env.HOME || '/';
-                    try {
-                        process.chdir(dir);
-                    } catch (err) {
-                        console.log(colors.error(`  ${icons.cross} Error changing directory: ${err.message}`));
-                    }
+                    changeDirectory(args.join(' '), rl);
                     console.log('');
                     break;
                 }
@@ -1157,6 +1245,10 @@ async function main() {
 
                 case 'folder':
                     await handleFolder();
+                    break;
+
+                case 'config':
+                    await handleConfig(args);
                     break;
 
                 case 'status':
@@ -1183,7 +1275,14 @@ async function main() {
 
                 default:
                     if (input.startsWith('!')) {
-                        await handleShellCommand(input.slice(1).trim());
+                        const shellCmd = input.slice(1).trim();
+                        if (shellCmd.startsWith('cd ') || shellCmd === 'cd') {
+                            const target = shellCmd.slice(2).trim();
+                            changeDirectory(target, rl);
+                            console.log('');
+                        } else {
+                            await handleShellCommand(shellCmd);
+                        }
                     } else {
                         console.log(colors.warning(`  Unknown command: ${colors.text(cmd)}`));
                         console.log(colors.muted(`  Type ${colors.accent('help')} to see available commands`));

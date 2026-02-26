@@ -53,6 +53,8 @@ const DEFAULT_CONFIG = {
         maxEntries: 100,
         saveHistory: true,
     },
+    slackBotToken: process.env.SLACK_BOT_TOKEN || '',
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     theme: 'default',
 };
 
@@ -88,6 +90,15 @@ export function loadConfig() {
 export function saveConfig(config) {
     ensureConfigDir();
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+export function syncConfigToEnv() {
+    const config = loadConfig();
+    if (config.agents['claude-api']?.apiKey) process.env.ANTHROPIC_API_KEY = config.agents['claude-api'].apiKey;
+    if (config.agents['gemini-api']?.apiKey) process.env.GOOGLE_API_KEY = config.agents['gemini-api'].apiKey;
+    if (config.agents['groq']?.apiKey) process.env.GROQ_API_KEY = config.agents['groq'].apiKey;
+    if (config.slackBotToken) process.env.SLACK_BOT_TOKEN = config.slackBotToken;
+    if (config.telegramBotToken) process.env.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
 }
 
 export function getAgent(name) {

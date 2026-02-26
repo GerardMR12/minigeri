@@ -52,7 +52,34 @@ npm install --silent
 if [ ! -f ".env" ]; then
     echo -e "${BLUE}📝 Creating .env file from example...${NC}"
     cp .env.example .env
-    echo -e "${YELLOW}⚠️  Don't forget to edit $INSTALL_DIR/.env with your tokens later!${NC}"
+    
+    echo -e "\n${YELLOW}🤖 Would you like to set up your API keys now? (y/N)${NC}"
+    read -r SET_KEYS < /dev/tty
+    if [[ "$SET_KEYS" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        echo -e "${BLUE}Enter your keys (leave blank to skip, input will be hidden):${NC}"
+        
+        read -sp "Anthropic API Key: " ANTHROPIC_KEY < /dev/tty
+        echo ""
+        if [ ! -z "$ANTHROPIC_KEY" ]; then
+            sed -i "s/ANTHROPIC_API_KEY=.*/ANTHROPIC_API_KEY=$ANTHROPIC_KEY/" .env
+        fi
+
+        read -sp "Google API Key: " GOOGLE_KEY < /dev/tty
+        echo ""
+        if [ ! -z "$GOOGLE_KEY" ]; then
+            sed -i "s/GOOGLE_API_KEY=.*/GOOGLE_API_KEY=$GOOGLE_KEY/" .env
+        fi
+
+        read -sp "Groq API Key: " GROQ_KEY < /dev/tty
+        echo ""
+        if [ ! -z "$GROQ_KEY" ]; then
+            sed -i "s/GROQ_API_KEY=.*/GROQ_API_KEY=$GROQ_KEY/" .env
+        fi
+        
+        echo -e "${GREEN}✅ Keys saved to .env file!${NC}"
+    else
+        echo -e "${YELLOW}⚠️  Skipping interactive setup. Don't forget to edit $INSTALL_DIR/.env later!${NC}"
+    fi
 fi
 
 # 6. Link binary globally
@@ -71,6 +98,7 @@ ${GREEN}✅ MiniGeri installed successfully!${NC}"
 echo -e "You can now run it by typing: ${BLUE}minigeri${NC}"
 echo -e "
 ${YELLOW}Next steps:${NC}"
-echo -e "1. Edit your configuration: ${BLUE}nano $INSTALL_DIR/.env${NC}"
+echo -e "1. Edit configuration: ${BLUE}minigeri ▸ config set <KEY> <VALUE>${NC}"
+echo -e "   (or manually: nano $INSTALL_DIR/.env)"
 echo -e "2. Launch the app: ${BLUE}minigeri${NC}"
 echo -e "3. Connect WhatsApp: ${BLUE}minigeri ▸ wa connect${NC}"
