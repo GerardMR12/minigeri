@@ -55,6 +55,7 @@ const DEFAULT_CONFIG = {
     },
     slackBotToken: process.env.SLACK_BOT_TOKEN || '',
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
+    telegramAllowedUsers: process.env.TELEGRAM_ALLOWED_USERS || '',
     theme: 'default',
 };
 
@@ -99,6 +100,7 @@ export function syncConfigToEnv() {
     if (config.agents['groq']?.apiKey) process.env.GROQ_API_KEY = config.agents['groq'].apiKey;
     if (config.slackBotToken) process.env.SLACK_BOT_TOKEN = config.slackBotToken;
     if (config.telegramBotToken) process.env.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
+    if (config.telegramAllowedUsers) process.env.TELEGRAM_ALLOWED_USERS = config.telegramAllowedUsers;
 }
 
 export function getAgent(name) {

@@ -766,12 +766,23 @@ async function handleTheme(args, rl) {
 
 // ─── Status & Shell ───────────────────────────────────────────────
 
+// All configurable keys — the canonical source of truth matching .env.example.
+// Each entry maps the env var name to where it lives in config.json.
+const CONFIG_KEYS = [
+    { env: 'ANTHROPIC_API_KEY', resolve: (c) => c.agents?.['claude-api']?.apiKey, apply: (c, v) => { if (!c.agents['claude-api']) c.agents['claude-api'] = {}; c.agents['claude-api'].apiKey = v; } },
+    { env: 'GOOGLE_API_KEY', resolve: (c) => c.agents?.['gemini-api']?.apiKey, apply: (c, v) => { if (!c.agents['gemini-api']) c.agents['gemini-api'] = {}; c.agents['gemini-api'].apiKey = v; } },
+    { env: 'GROQ_API_KEY', resolve: (c) => c.agents?.['groq']?.apiKey, apply: (c, v) => { if (!c.agents['groq']) c.agents['groq'] = {}; c.agents['groq'].apiKey = v; } },
+    { env: 'SLACK_BOT_TOKEN', resolve: (c) => c.slackBotToken, apply: (c, v) => { c.slackBotToken = v; } },
+    { env: 'TELEGRAM_BOT_TOKEN', resolve: (c) => c.telegramBotToken, apply: (c, v) => { c.telegramBotToken = v; } },
+    { env: 'TELEGRAM_ALLOWED_USERS', resolve: (c) => c.telegramAllowedUsers, apply: (c, v) => { c.telegramAllowedUsers = v; } },
+];
+
 async function handleConfig(args) {
     const subcommand = args[0]?.toLowerCase();
 
     if (subcommand === 'set') {
         const key = args[1]?.toUpperCase();
-        const value = args[2];
+        const value = args.slice(2).join(' ');
 
         if (!key || !value) {
             console.log(colors.warning(`\n  Usage: ${colors.primary('config set <KEY> <VALUE>')}`));
@@ -779,22 +790,14 @@ async function handleConfig(args) {
             return;
         }
 
+        const entry = CONFIG_KEYS.find(k => k.env === key);
         const config = loadConfig();
-        
-        // Map common env keys to config structure
-        if (key === 'ANTHROPIC_API_KEY') {
-            config.agents['claude-api'].apiKey = value;
-        } else if (key === 'GOOGLE_API_KEY') {
-            config.agents['gemini-api'].apiKey = value;
-        } else if (key === 'GROQ_API_KEY') {
-            config.agents['groq'].apiKey = value;
-        } else if (key === 'SLACK_BOT_TOKEN') {
-            config.slackBotToken = value;
-        } else if (key === 'TELEGRAM_BOT_TOKEN') {
-            config.telegramBotToken = value;
+
+        if (entry) {
+            entry.apply(config, value);
         } else {
-            // Generic setting
-            config[args[1]] = value;
+            // Generic / unknown key — store top-level
+            config[key] = value;
         }
 
         saveConfig(config);
@@ -807,12 +810,20 @@ async function handleConfig(args) {
         const config = loadConfig();
         console.log(`\n  ${colors.primary.bold('Current Configuration')}`);
         console.log(colors.muted('  ─────────────────────────────────────────────'));
-        
-        console.log(`  ${colors.text('Claude API Key:')}   ${config.agents['claude-api']?.apiKey ? '********' : colors.muted('not set')}`);
-        console.log(`  ${colors.text('Gemini API Key:')}   ${config.agents['gemini-api']?.apiKey ? '********' : colors.muted('not set')}`);
-        console.log(`  ${colors.text('Groq API Key:')}     ${config.agents['groq']?.apiKey ? '********' : colors.muted('not set')}`);
-        console.log(`  ${colors.text('Slack Token:')}      ${config.slackBotToken ? '********' : colors.muted('not set')}`);
-        console.log(`  ${colors.text('Telegram Token:')}   ${config.telegramBotToken ? '********' : colors.muted('not set')}`);
+        console.log(colors.muted('  Values are write-only and cannot be read back.\n'));
+
+        const maxLen = Math.max(...CONFIG_KEYS.map(k => k.env.length));
+
+        for (const entry of CONFIG_KEYS) {
+            const val = entry.resolve(config) || process.env[entry.env];
+            const isSet = val && val.trim() !== '';
+            const label = entry.env.padEnd(maxLen + 2);
+            const status = isSet
+                ? colors.success(`${icons.check} set`)
+                : colors.muted(`${icons.cross} not set`);
+            console.log(`  ${colors.text(label)} ${status}`);
+        }
+
         console.log('');
         return;
     }
