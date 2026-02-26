@@ -829,10 +829,18 @@ async function handleConfig(args) {
         console.log(colors.muted('  Values are write-only and cannot be read back.\n'));
 
         const maxLen = Math.max(...CONFIG_KEYS.map(k => k.env.length));
+        const placeholders = new Set([
+            'your_anthropic_api_key_here',
+            'your_google_api_key_here',
+            'gsk_your_groq_api_key_here',
+            'xoxb-your-slack-bot-token-here',
+            'your-telegram-bot-token-here',
+            'your-telegram-user-id-here'
+        ]);
 
         for (const entry of CONFIG_KEYS) {
             const val = entry.resolve(config) || process.env[entry.env];
-            const isSet = val && val.trim() !== '';
+            const isSet = val && val.trim() !== '' && !placeholders.has(val.trim());
             const label = entry.env.padEnd(maxLen + 2);
             const status = isSet
                 ? colors.success(`${icons.check} set`)
