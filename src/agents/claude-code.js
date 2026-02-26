@@ -1,24 +1,17 @@
 import { BaseAgent } from './base.js';
 import { execAgent, execInteractive } from '../executor.js';
-import { spawn } from 'child_process';
-
-/**
- * Build a clean env for Claude Code CLI.
- * If ANTHROPIC_API_KEY is empty or a placeholder, remove it so Claude Code
- * falls back to its own built-in auth instead of erroring with "Invalid API key".
- */
-function getCleanEnv() {
-    const env = { ...process.env };
-    if (!env.ANTHROPIC_API_KEY || env.ANTHROPIC_API_KEY.trim() === '') {
-        delete env.ANTHROPIC_API_KEY;
-    }
-    return env;
-}
 
 export class ClaudeCodeAgent extends BaseAgent {
     constructor(config = {}) {
         super('claude-code', config);
         this.command = config.command || 'claude';
+    }
+
+    _getCleanEnv() {
+        const env = { ...process.env };
+        // Unconditionally remove the API key so Claude Code uses its own auth
+        delete env.ANTHROPIC_API_KEY;
+        return env;
     }
 
     async send(message, context = {}) {
@@ -29,22 +22,22 @@ export class ClaudeCodeAgent extends BaseAgent {
             args.push('--conversation', context.conversationId);
         }
 
-        const result = await execAgent(this.command, args, { env: getCleanEnv() });
+        const result = await execAgent(this.command, args, { env: this._getCleanEnv() });
 
         if (result.code !== 0) {
-            throw new Error(`Claude Code exited with code ${result.code}: ${result.stderr}`);
+            throw new Error(`Claude Code exited with code ${result.code}: ${result.stderr || result.stdout}`);
         }
 
         return result.stdout.trim();
     }
 
     async interactive() {
-        return execInteractive(this.command, [], { env: getCleanEnv() });
+        return execInteractive(this.command, [], { env: this._getCleanEnv() });
     }
 
     async isAvailable() {
         try {
-            const result = await execAgent(this.command, ['--version'], { env: getCleanEnv() });
+            const result = await execAgent(this.command, ['--version'], { env: this._getCleanEnv() });
             return result.code === 0;
         } catch {
             return false;

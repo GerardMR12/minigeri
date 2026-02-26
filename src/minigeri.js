@@ -1011,6 +1011,19 @@ async function main() {
     // Check if an initial directory argument was provided
     const args = process.argv.slice(2);
     if (args.length > 0) {
+        if (args[0] === 'uninstall') {
+            console.log(colors.warning(`\n  ${icons.cross} Uninstalling minigeri globally...`));
+            const proc = spawn('npm', ['uninstall', '-g', 'cli-bot'], {
+                stdio: 'inherit',
+                shell: true
+            });
+            proc.on('close', () => {
+                console.log(colors.success(`\n  ${icons.check} minigeri has been uninstalled.\n`));
+                process.exit(0);
+            });
+            return;
+        }
+
         const targetPath = resolve(process.cwd(), args[0]);
         if (existsSync(targetPath) && statSync(targetPath).isDirectory()) {
             // Change the process working directory
@@ -1041,7 +1054,7 @@ async function main() {
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
         'ngrok', 'ngrok stop', 'ngrok status',
-        'status', 'config set', 'config list', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list',
+        'status', 'config set', 'config list', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
     ].sort();
 
     const rl = readline.createInterface({
@@ -1338,6 +1351,13 @@ async function main() {
                 case 'exit':
                 case 'quit':
                 case 'q':
+                    rl.close();
+                    return;
+
+                case 'uninstall':
+                    console.log(colors.warning(`\n  ${icons.cross} Uninstalling minigeri globally...`));
+                    await handleShellCommand('npm uninstall -g cli-bot');
+                    console.log(colors.success(`  ${icons.check} minigeri has been uninstalled.\n`));
                     rl.close();
                     return;
 
