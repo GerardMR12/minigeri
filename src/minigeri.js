@@ -803,6 +803,22 @@ async function handleConfig(args) {
         saveConfig(config);
         syncConfigToEnv();
         console.log(`\n  ${colors.success(icons.check)} Configuration updated: ${colors.primary(key)} set.\n`);
+
+        // Automatically apply connection changes without restart
+        if (key === 'TELEGRAM_BOT_TOKEN' || key === 'TELEGRAM_ALLOWED_USERS') {
+            await tgDisconnect();
+            await tgAutoConnect();
+            if (process.env.TELEGRAM_BOT_TOKEN) {
+                console.log(colors.muted('  Telegram bot reconnected with new settings.\n'));
+            }
+        } else if (key === 'SLACK_BOT_TOKEN') {
+            slackDisconnect();
+            await slackAutoConnect();
+            if (process.env.SLACK_BOT_TOKEN) {
+                console.log(colors.muted('  Slack bot reconnected with new token.\n'));
+            }
+        }
+
         return;
     }
 
