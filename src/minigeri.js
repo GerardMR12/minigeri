@@ -13,6 +13,7 @@ import chalk from 'chalk';
 import { colors, icons, setTheme, palettes } from './ui/theme.js';
 import { showBanner } from './ui/banner.js';
 import { showHelp } from './ui/help.js';
+import { showTutorial } from './ui/tutorial.js';
 import { createAgent, listAgentNames } from './agents/index.js';
 import { loadConfig, getAgent, saveConfig, syncConfigToEnv } from './config.js';
 import { waConnect, waSend, waStatus, waDisconnect } from './services/whatsapp.js';
@@ -965,6 +966,7 @@ registerCommand('folder', () => handleFolder());
 registerCommand('status', () => handleStatus());
 registerCommand('config', (args) => handleConfig(args));
 registerCommand('theme', (args) => handleTheme(args, null));
+registerCommand('tutorial', () => showTutorial());
 registerCommand('cd', (args) => {
     const dir = args.join(' ') || process.env.HOME || '/';
     try {
@@ -1012,7 +1014,7 @@ async function main() {
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
         'ngrok', 'ngrok stop', 'ngrok status',
-        'status', 'config set', 'config list', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list',
+        'status', 'config set', 'config list', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list',
     ].sort();
 
     const rl = readline.createInterface({
@@ -1293,6 +1295,10 @@ async function main() {
                 case 'help':
                 case '?':
                     showHelp();
+                    break;
+
+                case 'tutorial':
+                    showTutorial();
                     break;
 
                 case 'clear':
