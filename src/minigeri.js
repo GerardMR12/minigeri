@@ -444,7 +444,7 @@ async function handleGroq(args, rl) {
     if (!available) {
         console.log(colors.error(`\n  ${icons.cross} GROQ_API_KEY is not set.`));
         console.log(colors.muted('  Get a free key at: ') + colors.groq('https://console.groq.com/keys'));
-        console.log(colors.muted('  Then add ') + colors.text('GROQ_API_KEY=gsk_...') + colors.muted(' to your .env file\n'));
+        console.log(colors.muted('  Then run: ') + colors.primary('config set GROQ_API_KEY gsk_...') + '\n');
         return;
     }
 
@@ -920,6 +920,57 @@ async function handleStatus() {
     console.log('');
 }
 
+async function handleUpdate() {
+    console.log(`\n  ${colors.primary.bold('Updating MiniGeri')}`);
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+
+    const rootDir = join(__dirname, '..');
+
+    // Check if it's a git repo
+    if (!existsSync(join(rootDir, '.git'))) {
+        console.log(colors.error(`  ${icons.cross} Error: Not a git repository. Cannot update automatically.`));
+        console.log(colors.muted(`  Path checked: ${rootDir}\n`));
+        return;
+    }
+
+    const runInRoot = (cmd) => {
+        return new Promise((resolve) => {
+            console.log(colors.muted(`  $ ${cmd}`));
+            const proc = spawn(cmd, {
+                stdio: 'inherit',
+                shell: true,
+                cwd: rootDir,
+            });
+            proc.on('close', (code) => {
+                resolve(code === 0);
+            });
+            proc.on('error', (err) => {
+                console.log(colors.error(`  ${icons.cross} ${err.message}`));
+                resolve(false);
+            });
+        });
+    };
+
+    console.log(colors.muted(`  ${icons.spark} Fetching latest changes from GitHub...`));
+    const pulled = await runInRoot('git pull origin main');
+
+    if (!pulled) {
+        console.log(colors.error(`\n  ${icons.cross} Failed to update. Please check your internet connection or git status.`));
+        return;
+    }
+
+    console.log(colors.muted(`\n  ${icons.spark} Installing/updating dependencies...`));
+    const installed = await runInRoot('npm install --silent');
+
+    if (!installed) {
+        console.log(colors.error(`\n  ${icons.cross} Failed to install dependencies.`));
+        return;
+    }
+
+    console.log(`\n  ${colors.success(icons.check)} MiniGeri updated to the latest version!`);
+    console.log(colors.muted('  Restart minigeri to apply any changes.\n'));
+}
+
 function handleShellCommand(cmd) {
     return new Promise((resolve) => {
         console.log(colors.muted(`  $ ${cmd}\n`));
@@ -992,6 +1043,7 @@ registerCommand('ngrok', (args) => handleNgrok(args));
 registerCommand('folder', () => handleFolder());
 registerCommand('status', () => handleStatus());
 registerCommand('config', (args) => handleConfig(args));
+registerCommand('update', () => handleUpdate());
 registerCommand('theme', (args) => handleTheme(args, null));
 registerCommand('tutorial', () => showTutorial());
 registerCommand('cd', (args) => {
@@ -1024,6 +1076,11 @@ async function main() {
             return;
         }
 
+        if (args[0] === 'update') {
+            await handleUpdate();
+            process.exit(0);
+        }
+
         const targetPath = resolve(process.cwd(), args[0]);
         if (existsSync(targetPath) && statSync(targetPath).isDirectory()) {
             // Change the process working directory
@@ -1054,7 +1111,7 @@ async function main() {
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
         'ngrok', 'ngrok stop', 'ngrok status',
-        'status', 'config set', 'config list', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
+        'status', 'config set', 'config list', 'update', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
     ].sort();
 
     const rl = readline.createInterface({
@@ -1330,6 +1387,10 @@ async function main() {
 
                 case 'status':
                     await handleStatus();
+                    break;
+
+                case 'update':
+                    await handleUpdate();
                     break;
 
                 case 'help':

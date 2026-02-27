@@ -123,6 +123,7 @@ export function showHelp() {
     console.log(`  ${colors.accent.bold('tutorial')}                      ${colors.text('Learn how to use minigeri')}`);
     console.log(`  ${colors.accent.bold('config list')}                   ${colors.text('Show all API keys and their status')}`);
     console.log(`  ${colors.accent.bold('config set')} ${colors.muted('<k> <v>')}             ${colors.text('Set an API key or token')}`);
+    console.log(`  ${colors.accent.bold('update')}                        ${colors.text('Fetch the latest version from GitHub')}`);
     console.log(`  ${colors.accent.bold('folder')}                        ${colors.text('Show current working directory')}`);
     console.log(`  ${colors.accent.bold('cd <dir>')}                      ${colors.text('Change current directory')}`);
     console.log(`  ${colors.accent.bold('status')}                        ${colors.text('Show all services status')}`);

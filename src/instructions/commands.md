@@ -69,5 +69,6 @@ You can execute any of these commands using the `run_command` tool.
 | `folder` | Show current working directory |
 | `cd <dir>` | Change current directory |
 | `status` | Show all services status |
+| `update` | Fetch the latest version from GitHub |
 | `theme list` | List available themes |
 | `theme <id>` | Set the terminal theme |

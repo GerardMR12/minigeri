@@ -12,11 +12,11 @@ export async function slackConnect() {
     const token = process.env.SLACK_BOT_TOKEN;
 
     if (!token) {
-        console.log(colors.error(`  ${icons.cross} SLACK_BOT_TOKEN not set in .env`));
+        console.log(colors.error(`  ${icons.cross} SLACK_BOT_TOKEN not set.`));
         console.log(colors.muted('  1. Create a Slack App at https://api.slack.com/apps'));
         console.log(colors.muted('  2. Add Bot Token Scopes (chat:write, channels:read, channels:history, users:read)'));
         console.log(colors.muted('  3. Install to workspace and copy the Bot User OAuth Token'));
-        console.log(colors.muted('  4. Add SLACK_BOT_TOKEN=xoxb-... to your .env file'));
+        console.log(colors.muted('  4. Run: ') + colors.primary('config set SLACK_BOT_TOKEN xoxb-...'));
         return;
     }
 

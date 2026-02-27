@@ -28,15 +28,16 @@ export function showTutorial() {
     console.log(colors.text(`  ${colors.primary('config list')}              ${colors.muted('— See which keys are set/unset.')}`));
     console.log(colors.text(`  ${colors.primary('config set <KEY> <VAL>')} ${colors.muted('— Set a specific key.')}`));
     console.log(colors.muted('  Example: ') + colors.primary('config set GROQ_API_KEY gsk_12345...'));
-    console.log(colors.muted('  Example: ') + colors.primary('config set TELEGRAM_BOT_TOKEN 123456:ABC...'));
     console.log('');
 
-    // 4. Telegram & Slack Bots
-    console.log(colors.accent.bold('  4. Connecting to Telegram or Slack'));
-    console.log(colors.text('  Once your token is set, you can connect your bot.'));
-    console.log(colors.text(`  ${colors.telegram('tg connect')}           ${colors.muted('— Start receiving Telegram messages.')}`));
-    console.log(colors.text(`  ${colors.telegram('tg chats')}             ${colors.muted('— List people messaging your bot.')}`));
-    console.log(colors.text(`  ${colors.telegram('tg send <id> <msg>')}   ${colors.muted('— Reply to a specific ID.')}`));
+    // 4. Telegram Bot Setup
+    console.log(colors.accent.bold('  4. Telegram Bot Setup'));
+    console.log(colors.text('  1. Message ') + colors.telegram('@BotFather') + colors.text(' on Telegram and send ') + colors.telegram('/newbot') + colors.text('.'));
+    console.log(colors.text('  2. Follow the prompts and copy the provided API Token.'));
+    console.log(colors.text('  3. In minigeri, run: ') + colors.primary('config set TELEGRAM_BOT_TOKEN <your_token>'));
+    console.log(colors.text('  4. To find your User ID (for security), message ') + colors.telegram('@userinfobot') + colors.text('.'));
+    console.log(colors.text('  5. In minigeri, run: ') + colors.primary('config set TELEGRAM_ALLOWED_USERS <your_id>'));
+    console.log(colors.text(`  6. Start the bot:    ${colors.telegram('tg connect')}`));
     console.log('');
 
     // 5. Ngrok Tunnels

@@ -42,11 +42,9 @@ export async function tgConnect() {
     const token = process.env.TELEGRAM_BOT_TOKEN;
 
     if (!token || !isValidTokenFormat(token)) {
-        console.log(colors.error(`  ${icons.cross} TELEGRAM_BOT_TOKEN not set or invalid in .env`));
-        console.log(colors.muted('  1. Open Telegram and message @BotFather'));
-        console.log(colors.muted('  2. Send /newbot and follow the prompts'));
-        console.log(colors.muted('  3. Copy the bot token'));
-        console.log(colors.muted('  4. Add TELEGRAM_BOT_TOKEN=<token> to your .env file'));
+        console.log(colors.error(`  ${icons.cross} TELEGRAM_BOT_TOKEN not set or invalid.`));
+        console.log(colors.muted('  1. Message @BotFather on Telegram and send /newbot'));
+        console.log(colors.muted('  2. Copy the token and run: ') + colors.primary('config set TELEGRAM_BOT_TOKEN <token>'));
         return;
     }
 
@@ -71,7 +69,7 @@ export async function tgConnect() {
             console.log(colors.muted(`    🔒 Access restricted to ${allowed.size} allowed user(s)`));
         } else {
             console.log(colors.warning(`    ⚠️  TELEGRAM_ALLOWED_USERS not set — anyone can use this bot!`));
-            console.log(colors.muted(`    Set TELEGRAM_ALLOWED_USERS=<your_user_id> in .env for security`));
+            console.log(colors.muted(`    Run: ${colors.primary('config set TELEGRAM_ALLOWED_USERS <your_user_id>')} for security`));
         }
 
         console.log(colors.muted(`    Listening for incoming messages...`));
@@ -189,7 +187,7 @@ export function tgStatus() {
         if (allowed) {
             console.log(colors.muted(`    🔒 Restricted to ${allowed.size} allowed user(s)`));
         } else {
-            console.log(colors.warning(`    ⚠️  Open access (set TELEGRAM_ALLOWED_USERS in .env)`));
+            console.log(colors.warning(`    ⚠️  Open access (set TELEGRAM_ALLOWED_USERS for security)`));
         }
     } else if (process.env.TELEGRAM_BOT_TOKEN) {
         console.log(colors.warning(`  ${icons.circle} Telegram: Token set but not connected`));
@@ -234,7 +232,7 @@ async function handleIncomingMessage(msg, botInstance) {
         console.log(colors.warning(`  🚫 Unauthorized Telegram message blocked`));
         console.log(colors.muted(`     From: ${sender} (user ID: ${senderId}, chat: ${chatId})`));
         console.log(colors.muted(`     Text: ${msg.text || '[non-text]'}`));
-        console.log(colors.muted(`     Add this ID to TELEGRAM_ALLOWED_USERS in .env to allow access`));
+        console.log(colors.muted(`     Run: ${colors.primary(`config set TELEGRAM_ALLOWED_USERS ${senderId}`)} to allow access`));
         console.log('');
         process.stdout.write(colors.primary('  minigeri ▸ '));
 
