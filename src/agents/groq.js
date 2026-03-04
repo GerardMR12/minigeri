@@ -6,7 +6,7 @@ import { toOpenAITools, executeTool } from '../tools/index.js';
  * Groq Cloud Agent — blazing-fast inference for open-source models.
  *
  * Uses the free Groq API (https://console.groq.com).
- * API key required: set GROQ_API_KEY in your .env file.
+ * API key required: use config set GROQ_API_KEY <key>
  * Get a free key at: https://console.groq.com/keys
  */
 export class GroqAgent extends BaseAgent {
@@ -30,7 +30,7 @@ export class GroqAgent extends BaseAgent {
     async send(message, options = {}) {
         if (!this.apiKey) {
             throw new Error(
-                'GROQ_API_KEY is not set. Get a free key at https://console.groq.com/keys and add it to your .env file.'
+                'GROQ_API_KEY is not set. Get a free key at https://console.groq.com/keys and use config set GROQ_API_KEY <key>'
             );
         }
 

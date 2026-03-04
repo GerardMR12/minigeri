@@ -27,6 +27,7 @@ import {
 } from './services/telegram.js';
 import { handleNgrok, stopNgrok, isNgrokRunning } from './services/ngrok.js';
 import { registerCommand } from './tools/command-runner.js';
+import { checkForUpdates } from './utils/version.js';
 
 // Load env
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +45,43 @@ if (currentConfig.theme) {
 
 // ─── Command Handlers ─────────────────────────────────────────────
 
+// ── Persistent Agents ────────────────────────────────────────────
+
+// Keeps conversation history alive across separate shell commands
+let claudeAgent = null;
+let claudeAgentName = null;
+
+function getClaudeAgent() {
+    const config = loadConfig();
+    const isApi = config.claudeMode === 'api';
+    const name = isApi ? 'claude-api' : 'claude-code';
+
+    // Recreate agent if mode changed
+    if (!claudeAgent || claudeAgentName !== name) {
+        const agentConfig = getAgent(name);
+        claudeAgent = createAgent(name, agentConfig);
+        claudeAgentName = name;
+    }
+    return { agent: claudeAgent, isApi };
+}
+
+let geminiAgent = null;
+let geminiAgentName = null;
+
+function getGeminiAgent() {
+    const config = loadConfig();
+    const isApi = config.geminiMode === 'api';
+    const name = isApi ? 'gemini-api' : 'gemini-cli';
+
+    // Recreate agent if mode changed
+    if (!geminiAgent || geminiAgentName !== name) {
+        const agentConfig = getAgent(name);
+        geminiAgent = createAgent(name, agentConfig);
+        geminiAgentName = name;
+    }
+    return { agent: geminiAgent, isApi };
+}
+
 async function handleClaude(args, rl) {
     const subcommand = args[0]?.toLowerCase();
 
@@ -56,18 +94,21 @@ async function handleClaude(args, rl) {
         const config = loadConfig();
         config.claudeMode = mode;
         saveConfig(config);
+        
+        // Force agent recreation on next call
+        claudeAgent = null;
+        claudeAgentName = null;
+
         console.log(`\n  ${colors.success(icons.check)} Active Claude mode set to ${colors.claude.bold(mode)}\n`);
         return;
     }
 
     const prompt = args.join(' ').trim();
-    const config = loadConfig();
-    const isApi = config.claudeMode === 'api';
-    const agentName = isApi ? 'claude-api' : 'claude-code';
+    const { agent, isApi } = getClaudeAgent();
 
     // For API mode, check the key is set before even creating the agent
     if (isApi) {
-        const apiKey = config.agents?.['claude-api']?.apiKey || process.env.ANTHROPIC_API_KEY;
+        const apiKey = agent.apiKey || process.env.ANTHROPIC_API_KEY;
         if (!apiKey) {
             console.log(colors.error(`\n  ${icons.cross} ANTHROPIC_API_KEY is not set.`));
             console.log(colors.muted('  Set it with: ') + colors.primary('config set ANTHROPIC_API_KEY sk-...'));
@@ -75,9 +116,6 @@ async function handleClaude(args, rl) {
             return;
         }
     }
-
-    const agentConfig = getAgent(agentName);
-    const agent = createAgent(agentName, agentConfig);
 
     const available = await agent.isAvailable();
     if (!available) {
@@ -131,18 +169,21 @@ async function handleGemini(args, rl) {
         const config = loadConfig();
         config.geminiMode = mode;
         saveConfig(config);
+
+        // Force agent recreation on next call
+        geminiAgent = null;
+        geminiAgentName = null;
+
         console.log(`\n  ${colors.success(icons.check)} Active Gemini mode set to ${colors.gemini.bold(mode)}\n`);
         return;
     }
 
     const prompt = args.join(' ').trim();
-    const config = loadConfig();
-    const isApi = config.geminiMode === 'api';
-    const agentName = isApi ? 'gemini-api' : 'gemini-cli';
+    const { agent, isApi } = getGeminiAgent();
 
-    // For API mode, check the key is set before even creating the agent
+    // For API mode, check the key is set
     if (isApi) {
-        const apiKey = config.agents?.['gemini-api']?.apiKey || process.env.GOOGLE_API_KEY;
+        const apiKey = agent.apiKey || process.env.GOOGLE_API_KEY;
         if (!apiKey) {
             console.log(colors.error(`\n  ${icons.cross} GOOGLE_API_KEY is not set.`));
             console.log(colors.muted('  Set it with: ') + colors.primary('config set GOOGLE_API_KEY ...'));
@@ -150,9 +191,6 @@ async function handleGemini(args, rl) {
             return;
         }
     }
-
-    const agentConfig = getAgent(agentName);
-    const agent = createAgent(agentName, agentConfig);
 
     const available = await agent.isAvailable();
     if (!available) {
@@ -203,8 +241,28 @@ function getOllamaAgent() {
     if (!ollamaAgent || ollamaModelName !== agentConfig.model) {
         ollamaAgent = createAgent('ollama', agentConfig);
         ollamaModelName = agentConfig.model;
+        // Pre-check tool support in the background
+        ollamaAgent.checkToolSupport().catch(() => { });
     }
     return { agent: ollamaAgent, agentConfig };
+}
+
+/**
+ * Heuristic to guess if an Ollama model supports tool calling based on its name.
+ * @param {string} name
+ * @returns {boolean}
+ */
+function guessOllamaToolSupport(name) {
+    const n = name.toLowerCase();
+    // Common models that support tool calling in Ollama
+    const known = [
+        'llama3.1', 'llama3.2', 'llama3.3',
+        'mistral', 'mixtral',
+        'qwen2.5', 'qwen2', 'qwq',
+        'command-r', 'phi3',
+        'granite-code', 'firefunction'
+    ];
+    return known.some(k => n.includes(k));
 }
 
 async function handleOllama(args, rl) {
@@ -233,8 +291,19 @@ async function handleOllama(args, rl) {
                     for (const m of models) {
                         const isCurrent = m.name.replace(/:latest$/, '') === agentConfig.model.replace(/:latest$/, '');
                         const marker = isCurrent ? colors.success(icons.check) : ' ';
-                        console.log(`  ${marker} ${colors.ollama.bold(m.name.padEnd(28))} ${colors.muted(m.size.padEnd(10))} ${colors.muted(m.modified)}`);
+                        
+                        // Check support — use cached value for current, heuristic for others
+                        let supportsTools = guessOllamaToolSupport(m.name);
+                        if (isCurrent && agent.toolSupport !== null) {
+                            supportsTools = agent.toolSupport;
+                        }
+
+                        const toolIcon = supportsTools ? colors.success(icons.gear) : colors.muted(' ');
+                        const namePart = m.name.padEnd(28);
+                        
+                        console.log(`  ${marker} ${colors.ollama.bold(namePart)} ${toolIcon} ${colors.muted(m.size.padEnd(10))} ${colors.muted(m.modified)}`);
                     }
+                    console.log(colors.muted(`\n  ${icons.gear} = Supports tool calling (file system, commands, etc.)`));
                 }
             } catch (err) {
                 console.log(colors.error(`  ${icons.cross} ${err.message}`));
@@ -279,7 +348,15 @@ async function handleOllama(args, rl) {
             // Force agent recreation on next call with the new model
             ollamaAgent = null;
             ollamaModelName = null;
+            
+            // Guess support for the new model to inform the user
+            const supportsTools = guessOllamaToolSupport(modelName);
+            const toolInfo = supportsTools 
+                ? colors.success(`Supports tool calling ${icons.gear}`) 
+                : colors.muted('Does not support tool calling (limited functionality)');
+
             console.log(`\n  ${colors.success(icons.check)} Active model set to ${colors.ollama.bold(modelName)}`);
+            console.log(`  ${icons.spark} ${toolInfo}`);
             console.log(colors.muted('  Conversation history has been reset.\n'));
             break;
         }
@@ -971,6 +1048,45 @@ async function handleUpdate() {
     console.log(colors.muted('  Restart minigeri to apply any changes.\n'));
 }
 
+async function handleReinstall() {
+    console.log(`\n  ${colors.primary.bold('Reinstalling MiniGeri')}`);
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+
+    const rootDir = join(__dirname, '..');
+    const scriptPath = process.platform === 'win32'
+        ? join(rootDir, 'scripts', 'install.bat')
+        : join(rootDir, 'scripts', 'install.sh');
+
+    if (!existsSync(scriptPath)) {
+        console.log(colors.error(`  ${icons.cross} Error: Installation script not found at ${scriptPath}`));
+        return;
+    }
+
+    console.log(colors.muted(`  ${icons.spark} Running installation script...`));
+    console.log(colors.muted(`  This will reinstall MiniGeri and its dependencies.\n`));
+
+    return new Promise((resolve) => {
+        const proc = spawn(scriptPath, {
+            stdio: 'inherit',
+            shell: true,
+            cwd: rootDir,
+        });
+        proc.on('close', (code) => {
+            if (code === 0) {
+                console.log(`\n  ${colors.success(icons.check)} MiniGeri reinstalled successfully!`);
+                console.log(colors.muted('  Restart minigeri to apply any changes.\n'));
+            } else {
+                console.log(colors.error(`\n  ${icons.cross} Reinstallation failed with exit code ${code}.\n`));
+            }
+            resolve(code === 0);
+        });
+        proc.on('error', (err) => {
+            console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}\n`));
+            resolve(false);
+        });
+    });
+}
+
 function handleShellCommand(cmd) {
     return new Promise((resolve) => {
         console.log(colors.muted(`  $ ${cmd}\n`));
@@ -1043,8 +1159,10 @@ registerCommand('ngrok', (args) => handleNgrok(args));
 registerCommand('folder', () => handleFolder());
 registerCommand('status', () => handleStatus());
 registerCommand('config', (args) => handleConfig(args));
-registerCommand('update', () => handleUpdate());
-registerCommand('theme', (args) => handleTheme(args, null));
+    registerCommand('update', () => handleUpdate());
+    registerCommand('reinstall', () => handleReinstall());
+    registerCommand('theme', (args) => handleTheme(args, null));
+
 registerCommand('tutorial', () => showTutorial());
 registerCommand('cd', (args) => {
     const dir = args.join(' ') || process.env.HOME || '/';
@@ -1081,6 +1199,21 @@ async function main() {
             process.exit(0);
         }
 
+        if (args[0] === 'reinstall') {
+            await handleReinstall();
+            process.exit(0);
+        }
+
+        if (args[0] === 'status') {
+            await handleStatus();
+            process.exit(0);
+        }
+
+        if (args[0] === 'help' || args[0] === '--help' || args[0] === '-h') {
+            showHelp();
+            process.exit(0);
+        }
+
         const targetPath = resolve(process.cwd(), args[0]);
         if (existsSync(targetPath) && statSync(targetPath).isDirectory()) {
             // Change the process working directory
@@ -1093,6 +1226,17 @@ async function main() {
 
     console.clear();
     showBanner(pkg.version);
+
+    // Check for updates
+    try {
+        const update = await checkForUpdates();
+        if (update.available) {
+            console.log(`\n  ${colors.warning(icons.spark)} ${colors.warning.bold('New version available!')} (${update.behindCount} commits behind)`);
+            console.log(colors.muted('  Run ') + colors.primary('update') + colors.muted(' to get the latest changes.\n'));
+        }
+    } catch (err) {
+        // Silently fail version check to avoid annoying the user on network issues
+    }
 
     // Auto-connect services if tokens are available
     await slackAutoConnect();
@@ -1111,7 +1255,7 @@ async function main() {
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
         'ngrok', 'ngrok stop', 'ngrok status',
-        'status', 'config set', 'config list', 'update', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
+        'status', 'config set', 'config list', 'update', 'reinstall', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
     ].sort();
 
     const rl = readline.createInterface({
@@ -1391,6 +1535,10 @@ async function main() {
 
                 case 'update':
                     await handleUpdate();
+                    break;
+
+                case 'reinstall':
+                    await handleReinstall();
                     break;
 
                 case 'help':

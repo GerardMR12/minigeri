@@ -122,7 +122,7 @@ gemini
 - `gemini` → Opens Gemini CLI's interactive mode. You'll return to minigeri when you exit.
 - `gemini <prompt>` → Sends a single prompt and shows the response.
 
-**No API key needed in `.env`** — Gemini CLI uses your Google account auth.
+**No API key needed** — Gemini CLI uses your Google account auth.
 
 ### 2. WhatsApp Setup
 
@@ -198,9 +198,9 @@ minigeri uses the official [Slack Web API](https://api.slack.com/web) via `@slac
    - It starts with `xoxb-`
    - Copy this token
 
-**5. Add the token to your `.env` file:**
-   ```env
-   SLACK_BOT_TOKEN=xoxb-1234567890-1234567890123-abcdefghijklmnopqrstuvwx
+**5. Add the token using `config set`:**
+   ```bash
+   minigeri ▸ config set SLACK_BOT_TOKEN xoxb-1234...
    ```
 
 **6. Invite the bot to channels:**
@@ -211,7 +211,7 @@ minigeri uses the official [Slack Web API](https://api.slack.com/web) via `@slac
 #### Using Slack in minigeri
 
 ```
-# Connect (auto-connects on startup if token is in .env)
+# Connect (auto-connects on startup if token is configured)
 minigeri ▸ slack connect
 
 # List channels the bot can see
@@ -234,7 +234,7 @@ minigeri ▸ slack disconnect
 ```
 
 **Tips:**
-- If `SLACK_BOT_TOKEN` is set in `.env`, Slack auto-connects when minigeri starts.
+- If `SLACK_BOT_TOKEN` is configured, Slack auto-connects when minigeri starts.
 - You can use either channel names (`general`) or channel IDs (`C1234567890`).
 - The bot can only send messages to channels it has been invited to.
 
@@ -253,14 +253,14 @@ minigeri uses the official Telegram Bot API via `node-telegram-bot-api`. It poll
    - BotFather will give you a token that looks like this: `123456789:ABCdefGHIjklMNOpqrSTUvwxYZ`
    - Copy this token.
 
-**3. Add it to `.env`:**
-   ```env
-   TELEGRAM_BOT_TOKEN=your-token-here
+**3. Add it using `config set`:**
+   ```bash
+   minigeri ▸ config set TELEGRAM_BOT_TOKEN your-token-here
    ```
 
 #### Using Telegram in minigeri
 
-If the token is in your `.env`, minigeri will auto-connect when you start it and immediately begin listening for messages.
+If the token is configured, minigeri will auto-connect when you start it and immediately begin listening for messages.
 
 **Waiting for messages:**
 Because of how Telegram bots work, **you cannot initiate a conversation with a user**. The user must message your bot first.
@@ -294,15 +294,17 @@ minigeri ▸ tg disconnect
 
 **Tips:**
 - Bots can be added to Telegram groups too. The bot will see messages if it's mentioned or if it's made an admin.
-- **🔒 Security**: Set `TELEGRAM_ALLOWED_USERS` in your `.env` to restrict who can use the bot. Without it, **anyone** who messages your bot can use your AI keys and run commands!
-   > 📌 **Tip:** Message `@userinfobot` on Telegram to get your user ID, then add it: `TELEGRAM_ALLOWED_USERS=123456789`. For multiple users: `TELEGRAM_ALLOWED_USERS=111111,222222`
+- **🔒 Security**: Use `config set TELEGRAM_ALLOWED_USERS <id>` to restrict who can use the bot. Without it, **anyone** who messages your bot can use your AI keys and run commands!
+   > 📌 **Tip:** Message `@userinfobot` on Telegram to get your user ID, then use: `config set TELEGRAM_ALLOWED_USERS 123456789`. For multiple users: `config set TELEGRAM_ALLOWED_USERS 111111,222222`
 - **AI Agent Triggers**: If an allowed user sends `/gemini <prompt>` or `/claude <prompt>` to your bot, `minigeri` will automatically forward the prompt to the respective AI agent and reply to the user with the generated response!
    > ⚠️ **Warning:** The AI agents are run with auto-approval flags enabled (`-y` for Gemini, `--dangerously-skip-permissions` for Claude) so that they can edit files without getting stuck on confirmation prompts. **Only add trusted user IDs to `TELEGRAM_ALLOWED_USERS`.**
 - You can send Markdown formatting in your Telegram messages! (e.g., `tg send 1234567 **bold text**`).
 
-## Environment Variables
+## Configuration Guide
 
-| Variable | Required | Description |
+All keys and tokens can be set using the `config set <KEY> <VALUE>` command inside minigeri. You can view your current configuration (write-only for security) with `config list`.
+
+| Key | Required | Description |
 |---|---|---|
 | `SLACK_BOT_TOKEN` | For Slack | Slack Bot User OAuth Token (`xoxb-...`) |
 | `TELEGRAM_BOT_TOKEN` | For Telegram | Telegram Bot Token (`123456789:ABC...`) |
@@ -310,8 +312,9 @@ minigeri ▸ tg disconnect
 | `DEFAULT_AGENT` | No | Default AI agent: `claude-code` or `gemini-cli` (default: `claude-code`) |
 | `CLAUDE_CODE_PATH` | No | Path to Claude Code binary if not in PATH (default: `claude`) |
 | `GEMINI_CLI_PATH` | No | Path to Gemini CLI binary if not in PATH (default: `gemini`) |
-| `ANTHROPIC_API_KEY` | No | Anthropic API key (for future API-based agents) |
-| `GOOGLE_API_KEY` | No | Google AI API key (for future API-based agents) |
+| `ANTHROPIC_API_KEY` | No | Anthropic API key (for API-based agents) |
+| `GOOGLE_API_KEY` | No | Google AI API key (for API-based agents) |
+| `GROQ_API_KEY` | No | Groq API key (for Groq agent) |
 
 WhatsApp doesn't need any environment variables — it authenticates via QR code.
 
@@ -342,11 +345,11 @@ WhatsApp doesn't need any environment variables — it authenticates via QR code
 
 ### Claude Code "not found"
 - Install with: `npm install -g @anthropic-ai/claude-code`
-- Or set `CLAUDE_CODE_PATH=/full/path/to/claude` in `.env`
+- Or use `config set CLAUDE_CODE_PATH /full/path/to/claude`
 
 ### Gemini CLI "not found"
 - Install with: `npm install -g @google/gemini-cli`
-- Or set `GEMINI_CLI_PATH=/full/path/to/gemini` in `.env`
+- Or use `config set GEMINI_CLI_PATH /full/path/to/gemini`
 
 ## License
 

@@ -31,9 +31,9 @@ call npm install --silent
 
 REM 4. Set up .env
 if not exist ".env" (
-    echo 📝 Creating .env file from example...
+    echo 📝 Creating default configuration...
     copy .env.example .env
-    echo ⚠️  Don't forget to edit %INSTALL_DIR%\.env with your tokens later!
+    echo ⚠️  You can set your tokens later inside minigeri using the 'config' command.
 )
 
 REM 5. Link binary globally
@@ -50,8 +50,8 @@ echo ✅ MiniGeri installed successfully!
 echo You can now run it by typing: minigeri
 echo.
 echo Next steps:
-echo 1. Edit your configuration: notepad "%INSTALL_DIR%\.env"
-echo 2. Launch the app: minigeri
+echo 1. Launch the app: minigeri
+echo 2. Set up API keys: minigeri ▸ config set <KEY> <VALUE>
 echo 3. Connect WhatsApp: minigeri ▸ wa connect
 
 pause

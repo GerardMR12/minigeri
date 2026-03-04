@@ -13,6 +13,8 @@ let botInfoCache = null;
 let recentChats = new Map(); // chatId → { name, type }
 let ollamaAgents = new Map(); // chatId → OllamaAgent (persistent for context)
 let groqAgents = new Map(); // chatId → GroqAgent (persistent for context)
+let geminiAgents = new Map(); // chatId → GeminiAgent (persistent for context)
+let claudeAgents = new Map(); // chatId → ClaudeAgent (persistent for context)
 
 /**
  * Parse the allowed Telegram user IDs from the environment.
@@ -187,7 +189,7 @@ export function tgStatus() {
         if (allowed) {
             console.log(colors.muted(`    🔒 Restricted to ${allowed.size} allowed user(s)`));
         } else {
-            console.log(colors.warning(`    ⚠️  Open access (set TELEGRAM_ALLOWED_USERS for security)`));
+            console.log(colors.warning(`    ⚠️  Open access (use config set TELEGRAM_ALLOWED_USERS <id> for security)`));
         }
     } else if (process.env.TELEGRAM_BOT_TOKEN) {
         console.log(colors.warning(`  ${icons.circle} Telegram: Token set but not connected`));
@@ -316,19 +318,28 @@ async function handleIncomingMessage(msg, botInstance) {
 
                     const config = getAgent(agentName);
                     let agent;
+                    const chatKey = String(chatId);
+
                     if (agentName === 'ollama') {
-                        // Reuse persistent agent for Ollama to keep conversation context
-                        const chatKey = String(chatId);
                         if (!ollamaAgents.has(chatKey)) {
                             ollamaAgents.set(chatKey, createAgent(agentName, config));
                         }
                         agent = ollamaAgents.get(chatKey);
                     } else if (agentName === 'groq') {
-                        const chatKey = String(chatId);
                         if (!groqAgents.has(chatKey)) {
                             groqAgents.set(chatKey, createAgent(agentName, config));
                         }
                         agent = groqAgents.get(chatKey);
+                    } else if (agentName.startsWith('gemini')) {
+                        if (!geminiAgents.has(chatKey) || geminiAgents.get(chatKey).name !== agentName) {
+                            geminiAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = geminiAgents.get(chatKey);
+                    } else if (agentName.startsWith('claude')) {
+                        if (!claudeAgents.has(chatKey) || claudeAgents.get(chatKey).name !== agentName) {
+                            claudeAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = claudeAgents.get(chatKey);
                     } else {
                         agent = createAgent(agentName, config);
                     }

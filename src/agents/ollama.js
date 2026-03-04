@@ -15,6 +15,41 @@ export class OllamaAgent extends BaseAgent {
         this.command = config.command || 'ollama';
         this.model = config.model || 'llama3';
         this.baseUrl = config.baseUrl || 'http://localhost:11434';
+        this.toolSupport = null; // null = unknown, true/false = known
+    }
+
+    /**
+     * Check if the current model supports tool calling.
+     * Probes the API and caches the result.
+     * @returns {Promise<boolean>}
+     */
+    async checkToolSupport() {
+        if (this.toolSupport !== null) return this.toolSupport;
+
+        try {
+            // Small probe request with a dummy tool
+            await this._callApi([{ role: 'user', content: 'test' }], {
+                stream: false,
+                tools: [{
+                    type: 'function',
+                    function: {
+                        name: 'probe',
+                        description: 'probe',
+                        parameters: { type: 'object', properties: {} }
+                    }
+                }],
+                silent: true
+            });
+            this.toolSupport = true;
+        } catch (err) {
+            if (err.message.includes('does not support tools')) {
+                this.toolSupport = false;
+            } else {
+                // If it's a different error (e.g. connection), don't cache yet
+                return false;
+            }
+        }
+        return this.toolSupport;
     }
 
     /**
@@ -41,6 +76,19 @@ export class OllamaAgent extends BaseAgent {
         ) {
             // Prepend system message only once
             this.messages.unshift({ role: 'system', content: systemContext });
+        }
+
+        // Check tool support
+        const supportsTools = await this.checkToolSupport();
+
+        // If tools are not supported, just do a normal chat
+        if (!supportsTools) {
+            const result = await this._callApi(this.messages, {
+                stream: true,
+                silent,
+            });
+            this.messages.push({ role: 'assistant', content: result.content });
+            return result.content;
         }
 
         // Shared tools in OpenAI format (Ollama uses the same schema)

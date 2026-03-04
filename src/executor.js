@@ -14,6 +14,7 @@ export function execAgent(command, args = [], options = {}) {
     return new Promise((resolve, reject) => {
         const stdout = [];
         const stderr = [];
+        const silent = options.silent || false;
 
         const proc = spawn(command, args, {
             stdio: ['inherit', 'pipe', 'pipe'],
@@ -24,13 +25,13 @@ export function execAgent(command, args = [], options = {}) {
         proc.stdout.on('data', (data) => {
             const text = data.toString();
             stdout.push(text);
-            process.stdout.write(text);
+            if (!silent) process.stdout.write(text);
         });
 
         proc.stderr.on('data', (data) => {
             const text = data.toString();
             stderr.push(text);
-            process.stderr.write(chalk.dim(text));
+            if (!silent) process.stderr.write(chalk.dim(text));
         });
 
         proc.on('error', (err) => {

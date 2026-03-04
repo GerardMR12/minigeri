@@ -16,7 +16,7 @@ export class GeminiApiAgent extends BaseAgent {
 
     async send(message, options = {}) {
         if (!this.apiKey) {
-            throw new Error('GOOGLE_API_KEY is not set. Add it to your .env file.');
+            throw new Error('GOOGLE_API_KEY is not set. Use config set GOOGLE_API_KEY <key>');
         }
 
         const silent = options.silent || false;

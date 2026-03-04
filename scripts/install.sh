@@ -78,7 +78,7 @@ if [ ! -f ".env" ]; then
         
         echo -e "${GREEN}✅ Keys saved to .env file!${NC}"
     else
-        echo -e "${YELLOW}⚠️  Skipping interactive setup. Don't forget to edit $INSTALL_DIR/.env later!${NC}"
+        echo -e "${YELLOW}⚠️  Skipping interactive setup. You can set your keys later inside minigeri using the 'config' command.${NC}"
     fi
 fi
 
@@ -98,7 +98,6 @@ ${GREEN}✅ MiniGeri installed successfully!${NC}"
 echo -e "You can now run it by typing: ${BLUE}minigeri${NC}"
 echo -e "
 ${YELLOW}Next steps:${NC}"
-echo -e "1. Edit configuration: ${BLUE}minigeri ▸ config set <KEY> <VALUE>${NC}"
-echo -e "   (or manually: nano $INSTALL_DIR/.env)"
-echo -e "2. Launch the app: ${BLUE}minigeri${NC}"
+echo -e "1. Launch the app: ${BLUE}minigeri${NC}"
+echo -e "2. Set up API keys: ${BLUE}minigeri ▸ config set <KEY> <VALUE>${NC}"
 echo -e "3. Connect WhatsApp: ${BLUE}minigeri ▸ wa connect${NC}"

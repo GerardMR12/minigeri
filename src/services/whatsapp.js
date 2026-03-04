@@ -16,6 +16,8 @@ let isReady = false;
 let isConnecting = false;
 let ollamaAgents = new Map(); // chatId → OllamaAgent (persistent for context)
 let groqAgents = new Map(); // chatId → GroqAgent (persistent for context)
+let geminiAgents = new Map(); // chatId → GeminiAgent (persistent for context)
+let claudeAgents = new Map(); // chatId → ClaudeAgent (persistent for context)
 
 const AUTH_PATH = join(homedir(), '.cli-bot', 'whatsapp-auth');
 
@@ -225,19 +227,28 @@ async function handleIncomingMessage(msg) {
                 try {
                     const config = getAgent(agentName);
                     let agent;
+                    const chatKey = String(from);
+
                     if (agentName === 'ollama') {
-                        // Reuse persistent agent for Ollama to keep conversation context
-                        const chatKey = String(from);
                         if (!ollamaAgents.has(chatKey)) {
                             ollamaAgents.set(chatKey, createAgent(agentName, config));
                         }
                         agent = ollamaAgents.get(chatKey);
                     } else if (agentName === 'groq') {
-                        const chatKey = String(from);
                         if (!groqAgents.has(chatKey)) {
                             groqAgents.set(chatKey, createAgent(agentName, config));
                         }
                         agent = groqAgents.get(chatKey);
+                    } else if (agentName.startsWith('gemini')) {
+                        if (!geminiAgents.has(chatKey) || geminiAgents.get(chatKey).name !== agentName) {
+                            geminiAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = geminiAgents.get(chatKey);
+                    } else if (agentName.startsWith('claude')) {
+                        if (!claudeAgents.has(chatKey) || claudeAgents.get(chatKey).name !== agentName) {
+                            claudeAgents.set(chatKey, createAgent(agentName, config));
+                        }
+                        agent = claudeAgents.get(chatKey);
                     } else {
                         agent = createAgent(agentName, config);
                     }

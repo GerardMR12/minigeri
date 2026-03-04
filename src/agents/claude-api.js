@@ -16,7 +16,7 @@ export class ClaudeApiAgent extends BaseAgent {
 
     async send(message, options = {}) {
         if (!this.apiKey) {
-            throw new Error('ANTHROPIC_API_KEY is not set. Add it to your .env file.');
+            throw new Error('ANTHROPIC_API_KEY is not set. Use config set ANTHROPIC_API_KEY <key>');
         }
 
         const silent = options.silent || false;
