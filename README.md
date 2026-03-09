@@ -4,13 +4,19 @@ Your AI command center. A unified terminal interface that lets you talk to AI ag
 
 ## Installation
 
-### 1. Quick Install (Bash/Zsh)
+### 1. Quick Install (Linux/macOS)
 Run this command to install MiniGeri and its dependencies globally on Linux or macOS:
 ```bash
 curl -sSL https://raw.githubusercontent.com/GerardMR12/minigeri/main/scripts/install.sh | bash
 ```
 
-### 2. Manual Installation
+### 2. Quick Install (Windows)
+Open **PowerShell as Administrator** and run this command:
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/GerardMR12/minigeri/main/scripts/install.ps1')"
+```
+
+### 3. Manual Installation
 If you prefer to clone it manually or for development:
 ```bash
 # 1. Clone and install
