@@ -27,6 +27,7 @@ const ALLOWED_COMMANDS = new Set([
     'tg',
     'ngrok',
     'folder',
+    'workspace',
     'status',
     'theme',
     'cd',

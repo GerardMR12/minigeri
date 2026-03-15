@@ -9,6 +9,7 @@
  */
 import { loadAllInstructions } from '../utils/instructions.js';
 import { colors } from '../ui/theme.js';
+import { loadConfig } from '../config.js';
 
 export class BaseAgent {
     constructor(name, config = {}) {
@@ -55,7 +56,23 @@ export class BaseAgent {
      * @returns {string|null} The system context string, or null if empty.
      */
     buildSystemContext() {
-        return loadAllInstructions() || null;
+        let context = loadAllInstructions() || '';
+        const config = loadConfig();
+
+        if (config.activeWorkspace && config.workspaces?.[config.activeWorkspace]) {
+            const name = config.activeWorkspace;
+            const roots = config.workspaces[name];
+            let workspaceInfo = `\n\n# ACTIVE VIRTUAL WORKSPACE: ${name}\n`;
+            workspaceInfo += `You are working across multiple project directories simultaneously:\n`;
+            for (const [alias, path] of Object.entries(roots)) {
+                workspaceInfo += `- ${alias}: ${path}\n`;
+            }
+            workspaceInfo += `\nFiles listed via list_files will be prefixed with their folder name (e.g., "frontend/src/App.js").\n`;
+            workspaceInfo += `Use these prefixes when calling read_file.\n`;
+            context += workspaceInfo;
+        }
+
+        return context || null;
     }
 
     /**

@@ -6,6 +6,7 @@ import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand } from '../utils/cmd.js';
 import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
 import { handleNgrok } from './ngrok.js';
+import { runCommand } from '../tools/index.js';
 
 let bot = null;
 let isConnected = false;
@@ -284,6 +285,11 @@ async function handleIncomingMessage(msg, botInstance) {
                 const response = await handleSafeCommand(cmdStr);
                 botInstance.sendMessage(chatId, response, { parse_mode: 'Markdown' });
             }
+        } else if (textStr.startsWith('/workspace ') || textStr === '/workspace') {
+            const cmdStr = textStr.substring(1).trim(); // Remove leading slash
+            console.log(colors.telegram(`  [Running workspace command via Telegram: ${cmdStr}]`));
+            const response = await runCommand(cmdStr);
+            botInstance.sendMessage(chatId, `🛠️ *Workspace Manager*\n\n${response}`, { parse_mode: 'Markdown' });
         } else if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
             const config = loadConfig();
             agentName = config.geminiMode === 'api' ? 'gemini-api' : 'gemini-cli';

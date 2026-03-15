@@ -57,6 +57,8 @@ const DEFAULT_CONFIG = {
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     telegramAllowedUsers: process.env.TELEGRAM_ALLOWED_USERS || '',
     theme: 'default',
+    workspaces: {},
+    activeWorkspace: null,
 };
 
 export function ensureConfigDir() {

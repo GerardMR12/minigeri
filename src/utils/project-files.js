@@ -34,80 +34,108 @@ function isBinary(filepath) {
 }
 
 /**
- * Get the list of valid project file paths from cwd.
+ * Get the list of valid project file paths from one or more root directories.
  * Uses git ls-files (respects .gitignore). Falls back to manual walk.
  * Always excludes .env* files and binary files.
  *
- * @param {string} rootDir - The root directory to scan (locked boundary)
- * @returns {string[]} Array of relative file paths
+ * @param {string|string[]} rootDirs - One or more root directories to scan
+ * @returns {string[]} Array of file paths (prefixed with alias/path if multi-root)
  */
-export function listProjectFiles(rootDir) {
-    const absRoot = resolve(rootDir);
-    let filePaths = [];
+export function listProjectFiles(rootDirs) {
+    const roots = Array.isArray(rootDirs) ? rootDirs : [rootDirs];
+    const allFiles = [];
 
-    try {
-        const output = execSync('git ls-files --cached --others --exclude-standard', {
-            cwd: absRoot,
-            encoding: 'utf-8',
-            timeout: 5000,
-            stdio: ['pipe', 'pipe', 'pipe'],
+    for (const root of roots) {
+        const absRoot = resolve(root);
+        let filePaths = [];
+
+        try {
+            const output = execSync('git ls-files --cached --others --exclude-standard', {
+                cwd: absRoot,
+                encoding: 'utf-8',
+                timeout: 5000,
+                stdio: ['pipe', 'pipe', 'pipe'],
+            });
+            filePaths = output
+                .split('\n')
+                .map(f => f.trim())
+                .filter(Boolean);
+        } catch {
+            filePaths = walkDirectory(absRoot, absRoot);
+        }
+
+        // Filter out env files, binary files, node_modules
+        const filtered = filePaths.filter(relPath => {
+            const absPath = resolve(absRoot, relPath);
+            if (!absPath.startsWith(absRoot)) return false;
+
+            const fileName = relPath.split('/').pop();
+            if (isEnvFile(fileName)) return false;
+            if (isBinary(relPath)) return false;
+            if (relPath.includes('node_modules/')) return false;
+
+            return true;
         });
-        filePaths = output
-            .split('\n')
-            .map(f => f.trim())
-            .filter(Boolean);
-    } catch {
-        filePaths = walkDirectory(absRoot, absRoot);
+
+        // If multi-root, prefix files with their root folder name to disambiguate
+        const prefix = roots.length > 1 ? `${absRoot.split('/').pop()}/` : '';
+        allFiles.push(...filtered.map(f => prefix + f));
     }
 
-    // Filter out env files, binary files, node_modules
-    return filePaths.filter(relPath => {
-        const absPath = resolve(absRoot, relPath);
-        if (!absPath.startsWith(absRoot)) return false;
-
-        const fileName = relPath.split('/').pop();
-        if (isEnvFile(fileName)) return false;
-        if (isBinary(relPath)) return false;
-        if (relPath.includes('node_modules/')) return false;
-
-        return true;
-    });
+    return allFiles;
 }
 
 /**
- * Read a single project file safely (locked to rootDir and below).
+ * Read a single project file safely (locked to rootDirs and below).
  *
- * @param {string} rootDir - The root directory (security boundary)
+ * @param {string|string[]} rootDirs - The root directories (security boundary)
  * @param {string} filePath - Relative path to the file
  * @returns {string} File contents or an error message
  */
-export function readProjectFile(rootDir, filePath) {
-    const absRoot = resolve(rootDir);
-    const absPath = resolve(absRoot, filePath);
-
-    // Security: no escaping above root
-    if (!absPath.startsWith(absRoot)) {
-        return '[Error: Access denied — path is outside the project directory]';
-    }
-
-    // Block .env files
-    const fileName = filePath.split('/').pop();
-    if (isEnvFile(fileName)) {
-        return '[Error: Access denied — .env files are restricted]';
-    }
-
-    try {
-        const stat = statSync(absPath);
-        if (!stat.isFile()) return '[Error: Not a file]';
-        if (stat.size > MAX_FILE_SIZE) {
-            // Read just the first chunk
-            const content = readFileSync(absPath, 'utf-8').substring(0, MAX_FILE_SIZE);
-            return content + '\n\n[... file truncated at 8 KB ...]';
+export function readProjectFile(rootDirs, filePath) {
+    const roots = Array.isArray(rootDirs) ? rootDirs : [rootDirs];
+    
+    // Try to resolve the file in each root
+    for (const root of roots) {
+        const absRoot = resolve(root);
+        
+        // If multi-root, the filePath might be prefixed with the root folder name
+        let targetPath = filePath;
+        const rootName = absRoot.split('/').pop();
+        if (roots.length > 1 && filePath.startsWith(rootName + '/')) {
+            targetPath = filePath.slice(rootName.length + 1);
         }
-        return readFileSync(absPath, 'utf-8');
-    } catch (err) {
-        return `[Error: ${err.message}]`;
+
+        const absPath = resolve(absRoot, targetPath);
+
+        // Security: must stay within THIS root
+        if (!absPath.startsWith(absRoot) || !existsSync(absPath)) {
+            continue;
+        }
+
+        // Block .env files
+        const fileName = targetPath.split('/').pop();
+        if (isEnvFile(fileName)) {
+            return '[Error: Access denied — .env files are restricted]';
+        }
+
+        try {
+            const stat = statSync(absPath);
+            if (!stat.isFile()) continue; // Keep looking if it's a directory
+            
+            if (stat.size > MAX_FILE_SIZE) {
+                // Read just the first chunk
+                const content = readFileSync(absPath, 'utf-8').substring(0, MAX_FILE_SIZE);
+                return content + '\n\n[... file truncated at 8 KB ...]';
+            }
+            return readFileSync(absPath, 'utf-8');
+        } catch (err) {
+            // If it failed for a specific reason (e.g. permission), report it
+            return `[Error: ${err.message}]`;
+        }
     }
+
+    return '[Error: File not found in any project root]';
 }
 
 

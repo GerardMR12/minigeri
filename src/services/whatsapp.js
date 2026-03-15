@@ -10,6 +10,7 @@ import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand } from '../utils/cmd.js';
 import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
 import { handleNgrok } from './ngrok.js';
+import { runCommand } from '../tools/index.js';
 
 let client = null;
 let isReady = false;
@@ -189,13 +190,17 @@ async function handleIncomingMessage(msg) {
         if (!cmdStr) {
             await msg.reply(`Please provide a command. Example: /cmd ls -la`);
         } else {
-            console.log(colors.whatsapp(`  [Running secure command via WhatsApp: ${cmdStr}]`));
-            const response = await handleSafeCommand(cmdStr);
-            await msg.reply(response);
-        }
-    } else {
-        let agentName = null;
-        let prompt = '';
+                            console.log(colors.whatsapp(`  [Running secure command via WhatsApp: ${cmdStr}]`));
+                            const response = await handleSafeCommand(cmdStr);
+                            await msg.reply(response);
+                        }
+                    } else if (textStr.startsWith('/workspace ') || textStr === '/workspace') {
+                        const cmdStr = textStr.substring(1).trim(); // Remove leading slash
+                        console.log(colors.whatsapp(`  [Running workspace command via WhatsApp: ${cmdStr}]`));
+                        const response = await runCommand(cmdStr);
+                        await msg.reply(`🛠️ *Workspace Manager*\n\n${response}`);
+                    } else {
+                        let agentName = null;        let prompt = '';
         const botConfig = loadConfig();
 
         if (textStr.startsWith('/gemini ') || textStr === '/gemini') {

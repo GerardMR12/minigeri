@@ -961,6 +961,123 @@ async function handleConfig(args) {
     console.log(colors.muted('  Example: ') + colors.text('config set ANTHROPIC_API_KEY sk-...\n'));
 }
 
+async function handleWorkspace(args) {
+    const subcommand = args[0]?.toLowerCase();
+    const config = loadConfig();
+
+    if (!subcommand || subcommand === 'list' || subcommand === 'ls' || subcommand === 'show') {
+        console.log(`\n  ${colors.primary.bold('Virtual Workspaces')}`);
+        console.log(colors.muted('  ─────────────────────────────────────────────'));
+        
+        const workspaces = config.workspaces || {};
+        const names = Object.keys(workspaces);
+
+        if (names.length === 0) {
+            console.log(colors.muted('  No workspaces defined. Create one with:'));
+            console.log(colors.muted('  workspace create <name>'));
+        } else {
+            for (const name of names) {
+                const isActive = config.activeWorkspace === name;
+                const marker = isActive ? colors.success(icons.check) : ' ';
+                console.log(`  ${marker} ${colors.text.bold(name)}`);
+                const paths = workspaces[name];
+                for (const [alias, path] of Object.entries(paths)) {
+                    console.log(`     ${colors.muted('•')} ${colors.accent(alias.padEnd(10))} ${colors.muted(path)}`);
+                }
+            }
+        }
+        console.log('');
+        return;
+    }
+
+    if (subcommand === 'create' || subcommand === 'new') {
+        const name = args[1];
+        if (!name) {
+            console.log(colors.warning(`\n  Usage: ${colors.primary('workspace create <name>')}\n`));
+            return;
+        }
+        if (!config.workspaces) config.workspaces = {};
+        if (config.workspaces[name]) {
+            console.log(colors.warning(`\n  Workspace "${name}" already exists.\n`));
+            return;
+        }
+        config.workspaces[name] = {};
+        config.activeWorkspace = name;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Workspace "${colors.primary.bold(name)}" created and set as active.\n`);
+        return;
+    }
+
+    if (subcommand === 'add') {
+        const name = config.activeWorkspace;
+        if (!name) {
+            console.log(colors.error(`\n  ${icons.cross} No active workspace. Create one first.\n`));
+            return;
+        }
+        const alias = args[1];
+        const rawPath = args.slice(2).join(' ');
+        if (!alias || !rawPath) {
+            console.log(colors.warning(`\n  Usage: ${colors.primary('workspace add <alias> <path>')}`));
+            console.log(colors.muted('  Example: workspace add frontend /mnt/c/Users/Geri/frontend\n'));
+            return;
+        }
+
+        const absPath = resolve(process.cwd(), rawPath.replace(/^~(?=$|\/|\\)/, process.env.HOME || process.env.USERPROFILE || ''));
+        if (!existsSync(absPath)) {
+            console.log(colors.error(`\n  ${icons.cross} Path does not exist: ${absPath}\n`));
+            return;
+        }
+
+        config.workspaces[name][alias] = absPath;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Added ${colors.accent(alias)} to workspace ${colors.primary.bold(name)}.`);
+
+        // Optimization: Disable filemode check for Windows mounts to avoid permission noise in git
+        if (absPath.startsWith('/mnt/')) {
+            try {
+                spawn('git', ['config', 'core.filemode', 'false'], { cwd: absPath });
+                console.log(colors.muted('  (Optimized git for Windows mount)'));
+            } catch {}
+        }
+        console.log('');
+        return;
+    }
+
+    if (subcommand === 'use' || subcommand === 'set' || subcommand === 'activate') {
+        const name = args[1];
+        if (!name || !config.workspaces?.[name]) {
+            console.log(colors.warning(`\n  Usage: ${colors.primary('workspace activate <name>')}`));
+            const available = Object.keys(config.workspaces || {}).join(', ') || '(none)';
+            console.log(colors.muted(`  Available: ${available}\n`));
+            return;
+        }
+        config.activeWorkspace = name;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Active workspace set to "${colors.primary.bold(name)}"\n`);
+        return;
+    }
+
+    if (subcommand === 'clear' || subcommand === 'reset' || subcommand === 'deactivate') {
+        config.activeWorkspace = null;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Workspace deactivated. Back to standard mode.\n`);
+        return;
+    }
+
+    if (subcommand === 'remove' || subcommand === 'rm' || subcommand === 'delete') {
+        const name = args[1];
+        if (!name || !config.workspaces?.[name]) {
+            console.log(colors.warning(`\n  Usage: ${colors.primary('workspace remove <name>')}\n`));
+            return;
+        }
+        delete config.workspaces[name];
+        if (config.activeWorkspace === name) config.activeWorkspace = null;
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} Workspace "${name}" removed.\n`);
+        return;
+    }
+}
+
 async function handleStatus() {
     const config = loadConfig();
     const agentNames = listAgentNames();
@@ -1157,6 +1274,7 @@ registerCommand('slack', (args) => handleSlack(args));
 registerCommand('tg', (args) => handleTelegram(args));
 registerCommand('ngrok', (args) => handleNgrok(args));
 registerCommand('folder', () => handleFolder());
+registerCommand('workspace', (args) => handleWorkspace(args));
 registerCommand('status', () => handleStatus());
 registerCommand('config', (args) => handleConfig(args));
     registerCommand('update', () => handleUpdate());
@@ -1256,6 +1374,8 @@ async function main() {
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
         'ngrok', 'ngrok stop', 'ngrok status',
         'status', 'config set', 'config list', 'update', 'reinstall', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
+        'workspace list', 'workspace create', 'workspace add', 'workspace use', 'workspace clear', 'workspace remove',
+        'workspace activate', 'workspace deactivate', 'workspace show',
     ].sort();
 
     const rl = readline.createInterface({
@@ -1523,6 +1643,10 @@ async function main() {
 
                 case 'folder':
                     await handleFolder();
+                    break;
+
+                case 'workspace':
+                    await handleWorkspace(args);
                     break;
 
                 case 'config':

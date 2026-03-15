@@ -1,5 +1,6 @@
 import { BaseAgent } from './base.js';
 import { execAgent, execInteractive } from '../executor.js';
+import { loadConfig } from '../config.js';
 
 export class GeminiCliAgent extends BaseAgent {
     constructor(config = {}) {
@@ -10,11 +11,21 @@ export class GeminiCliAgent extends BaseAgent {
 
     async send(message, options = {}) {
         const silent = options.silent || false;
+        const config = loadConfig();
+
         // Add -y (YOLO mode) and JSON output to capture session IDs
         const args = ['-p', message, '-y', '--output-format', 'json'];
 
         if (this.sessionId) {
             args.push('--resume', this.sessionId);
+        }
+
+        // Add workspace directories if active
+        if (config.activeWorkspace && config.workspaces?.[config.activeWorkspace]) {
+            const dirs = Object.values(config.workspaces[config.activeWorkspace]);
+            if (dirs.length > 0) {
+                args.push('--include-directories', ...dirs);
+            }
         }
 
         const result = await execAgent(this.command, args, { silent: true });
@@ -52,7 +63,15 @@ export class GeminiCliAgent extends BaseAgent {
     }
 
     async interactive() {
-        return execInteractive(this.command);
+        const config = loadConfig();
+        const args = [];
+        if (config.activeWorkspace && config.workspaces?.[config.activeWorkspace]) {
+            const dirs = Object.values(config.workspaces[config.activeWorkspace]);
+            if (dirs.length > 0) {
+                args.push('--include-directories', ...dirs);
+            }
+        }
+        return execInteractive(this.command, args);
     }
 
     async isAvailable() {

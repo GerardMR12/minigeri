@@ -7,6 +7,7 @@
 
 import { listProjectFiles, readProjectFile } from '../utils/project-files.js';
 import { runCommand } from './command-runner.js';
+import { loadConfig } from '../config.js';
 
 /**
  * Execute a tool call by name and return the result string.
@@ -18,18 +19,24 @@ import { runCommand } from './command-runner.js';
  * @returns {Promise<string>} The tool's text result
  */
 export async function executeTool(name, args = {}, opts = {}) {
-    const cwd = opts.cwd || process.cwd();
+    const config = loadConfig();
+    let roots = opts.cwd || process.cwd();
+
+    // Use active workspace roots if defined
+    if (config.activeWorkspace && config.workspaces?.[config.activeWorkspace]) {
+        roots = Object.values(config.workspaces[config.activeWorkspace]);
+    }
 
     switch (name) {
         case 'list_files': {
-            const files = listProjectFiles(cwd);
+            const files = listProjectFiles(roots);
             return files.join('\n') || '(no files found)';
         }
 
         case 'read_file': {
             const path = args.path;
             if (!path) return '[Error: missing "path" argument]';
-            return readProjectFile(cwd, path);
+            return readProjectFile(roots, path);
         }
 
         case 'run_command': {
