@@ -270,7 +270,19 @@ async function handleIncomingMessage(msg, botInstance) {
             botInstance.sendMessage(chatId, getHelpText(), { parse_mode: 'Markdown' });
             console.log(colors.telegram(`  ${icons.check} Sent help message to Telegram user`));
         } else if (lowText === '/folder') {
-            botInstance.sendMessage(chatId, `📁 *Current Directory:*\n\`${process.cwd()}\``, { parse_mode: 'Markdown' });
+            const config = loadConfig();
+            let folderMsg = `📁 *Current Directory:*\n\`${process.cwd()}\``;
+            if (config.activeWorkspace && config.workspaces?.[config.activeWorkspace]) {
+                const wsName = config.activeWorkspace;
+                const wsFolders = config.workspaces[wsName];
+                folderMsg += `\n\n✅ *Virtual Workspace:* \`${wsName}\``;
+                for (const [alias, path] of Object.entries(wsFolders)) {
+                    folderMsg += `\n  • \`${alias}\` → \`${path}\``;
+                }
+            } else {
+                folderMsg += `\n\n_No virtual workspace active._`;
+            }
+            botInstance.sendMessage(chatId, folderMsg, { parse_mode: 'Markdown' });
             console.log(colors.telegram(`  ${icons.check} Sent folder path to Telegram user`));
         } else if (lowText === '/ngrok') {
             console.log(colors.telegram(`  [Starting ngrok via Telegram: 8080]`));

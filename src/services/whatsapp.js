@@ -179,7 +179,19 @@ async function handleIncomingMessage(msg) {
         await msg.reply(getHelpText());
         console.log(colors.whatsapp(`  ${icons.check} Sent help message to WhatsApp user`));
     } else if (lowText === '/folder') {
-        await msg.reply(`📁 *Current Directory:*\n\`${process.cwd()}\``);
+        const config = loadConfig();
+        let folderMsg = `📁 *Current Directory:*\n\`${process.cwd()}\``;
+        if (config.activeWorkspace && config.workspaces?.[config.activeWorkspace]) {
+            const wsName = config.activeWorkspace;
+            const wsFolders = config.workspaces[wsName];
+            folderMsg += `\n\n✅ *Virtual Workspace:* \`${wsName}\``;
+            for (const [alias, path] of Object.entries(wsFolders)) {
+                folderMsg += `\n  • \`${alias}\` → \`${path}\``;
+            }
+        } else {
+            folderMsg += `\n\n_No virtual workspace active._`;
+        }
+        await msg.reply(folderMsg);
         console.log(colors.whatsapp(`  ${icons.check} Sent folder path to WhatsApp user`));
     } else if (lowText === '/ngrok') {
         console.log(colors.whatsapp(`  [Starting ngrok via WhatsApp: 8080]`));

@@ -833,9 +833,24 @@ async function handleTelegram(args) {
 
 async function handleFolder() {
     const cwd = process.cwd();
+    const config = loadConfig();
+
     console.log(`\n  ${colors.primary.bold('Current Directory')}`);
     console.log(colors.muted('  ─────────────────────────────────────────────'));
     console.log(`  ${colors.accent(icons.gear)} ${colors.text(cwd)}`);
+
+    if (config.activeWorkspace && config.workspaces?.[config.activeWorkspace]) {
+        const wsName = config.activeWorkspace;
+        const wsFolders = config.workspaces[wsName];
+        console.log('');
+        console.log(`  ${colors.success(icons.check)} ${colors.primary.bold('Virtual Workspace:')} ${colors.accent(wsName)}`);
+        for (const [alias, path] of Object.entries(wsFolders)) {
+            console.log(`     ${colors.muted('•')} ${colors.accent(alias.padEnd(12))} ${colors.text(path)}`);
+        }
+    } else {
+        console.log(`  ${colors.muted('No virtual workspace active.')}`);
+    }
+
     console.log('');
 }
 
