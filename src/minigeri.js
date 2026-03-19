@@ -6,7 +6,8 @@ import { spawn } from 'child_process';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
-import { readFileSync, existsSync, statSync } from 'fs';
+import { readFileSync, existsSync, statSync, writeFileSync, mkdirSync } from 'fs';
+import { homedir } from 'os';
 
 import chalk from 'chalk';
 
@@ -42,6 +43,35 @@ const currentConfig = loadConfig();
 if (currentConfig.theme) {
     setTheme(currentConfig.theme);
 }
+
+// ── Sync Supabase MCP into Gemini CLI settings ────────────────────
+function syncGeminiMcp() {
+    const mcpUrl = process.env.SUPABASE_MCP_URL;
+    const token = process.env.SUPABASE_ACCESS_TOKEN;
+    if (!mcpUrl || !token) return;
+
+    const geminiDir = join(homedir(), '.gemini');
+    const settingsPath = join(geminiDir, 'settings.json');
+
+    let settings = {};
+    try {
+        if (existsSync(settingsPath)) {
+            settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+        }
+    } catch { /* start fresh */ }
+
+    if (!settings.mcpServers) settings.mcpServers = {};
+    settings.mcpServers.supabase = {
+        url: mcpUrl,
+        headers: { Authorization: `Bearer ${token}` },
+    };
+
+    try {
+        mkdirSync(geminiDir, { recursive: true });
+        writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+    } catch { /* non-critical */ }
+}
+syncGeminiMcp();
 
 // ─── Command Handlers ─────────────────────────────────────────────
 
@@ -895,6 +925,8 @@ const CONFIG_KEYS = [
     { env: 'SLACK_BOT_TOKEN', resolve: (c) => c.slackBotToken, apply: (c, v) => { c.slackBotToken = v; } },
     { env: 'TELEGRAM_BOT_TOKEN', resolve: (c) => c.telegramBotToken, apply: (c, v) => { c.telegramBotToken = v; } },
     { env: 'TELEGRAM_ALLOWED_USERS', resolve: (c) => c.telegramAllowedUsers, apply: (c, v) => { c.telegramAllowedUsers = v; } },
+    { env: 'SUPABASE_MCP_URL', resolve: (c) => c.supabaseMcpUrl, apply: (c, v) => { c.supabaseMcpUrl = v; } },
+    { env: 'SUPABASE_ACCESS_TOKEN', resolve: (c) => c.supabaseAccessToken, apply: (c, v) => { c.supabaseAccessToken = v; } },
 ];
 
 async function handleConfig(args) {
@@ -955,7 +987,9 @@ async function handleConfig(args) {
             'gsk_your_groq_api_key_here',
             'xoxb-your-slack-bot-token-here',
             'your-telegram-bot-token-here',
-            'your-telegram-user-id-here'
+            'your-telegram-user-id-here',
+            'your_supabase_mcp_url_here',
+            'your_supabase_access_token_here'
         ]);
 
         for (const entry of CONFIG_KEYS) {
