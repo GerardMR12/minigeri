@@ -6,7 +6,8 @@ import { spawn } from 'child_process';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
-import { readFileSync, existsSync, statSync } from 'fs';
+import { readFileSync, existsSync, statSync, writeFileSync, mkdirSync } from 'fs';
+import { homedir } from 'os';
 
 import chalk from 'chalk';
 
@@ -42,6 +43,35 @@ const currentConfig = loadConfig();
 if (currentConfig.theme) {
     setTheme(currentConfig.theme);
 }
+
+// ── Sync Supabase MCP into Gemini CLI settings ────────────────────
+function syncGeminiMcp() {
+    const mcpUrl = process.env.SUPABASE_MCP_URL;
+    const token = process.env.SUPABASE_ACCESS_TOKEN;
+    if (!mcpUrl || !token) return;
+
+    const geminiDir = join(homedir(), '.gemini');
+    const settingsPath = join(geminiDir, 'settings.json');
+
+    let settings = {};
+    try {
+        if (existsSync(settingsPath)) {
+            settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+        }
+    } catch { /* start fresh */ }
+
+    if (!settings.mcpServers) settings.mcpServers = {};
+    settings.mcpServers.supabase = {
+        url: mcpUrl,
+        headers: { Authorization: `Bearer ${token}` },
+    };
+
+    try {
+        mkdirSync(geminiDir, { recursive: true });
+        writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+    } catch { /* non-critical */ }
+}
+syncGeminiMcp();
 
 // ─── Command Handlers ─────────────────────────────────────────────
 
@@ -895,6 +925,8 @@ const CONFIG_KEYS = [
     { env: 'SLACK_BOT_TOKEN', resolve: (c) => c.slackBotToken, apply: (c, v) => { c.slackBotToken = v; } },
     { env: 'TELEGRAM_BOT_TOKEN', resolve: (c) => c.telegramBotToken, apply: (c, v) => { c.telegramBotToken = v; } },
     { env: 'TELEGRAM_ALLOWED_USERS', resolve: (c) => c.telegramAllowedUsers, apply: (c, v) => { c.telegramAllowedUsers = v; } },
+    { env: 'SUPABASE_MCP_URL', resolve: (c) => c.supabaseMcpUrl, apply: (c, v) => { c.supabaseMcpUrl = v; } },
+    { env: 'SUPABASE_ACCESS_TOKEN', resolve: (c) => c.supabaseAccessToken, apply: (c, v) => { c.supabaseAccessToken = v; } },
 ];
 
 async function handleConfig(args) {
@@ -955,7 +987,9 @@ async function handleConfig(args) {
             'gsk_your_groq_api_key_here',
             'xoxb-your-slack-bot-token-here',
             'your-telegram-bot-token-here',
-            'your-telegram-user-id-here'
+            'your-telegram-user-id-here',
+            'your_supabase_mcp_url_here',
+            'your_supabase_access_token_here'
         ]);
 
         for (const entry of CONFIG_KEYS) {
@@ -1219,6 +1253,80 @@ async function handleReinstall() {
     });
 }
 
+async function handleUninstall() {
+    console.log(`\n  ${colors.warning.bold('Uninstall MiniGeri')}`);
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(colors.muted('  This will:'));
+    console.log(colors.muted(`    • Remove the global ${colors.accent('minigeri')} command`));
+    console.log(colors.muted(`    • Delete the config folder  ${colors.accent('~/.cli-bot/')}`));
+    console.log(colors.muted(`    • Remove Supabase MCP entry from ${colors.accent('~/.gemini/settings.json')}\n`));
+
+    // Prompt for confirmation
+    const answer = await new Promise((res) => {
+        const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl2.question(colors.warning('  Are you sure? Type YES to confirm: '), (a) => {
+            rl2.close();
+            res(a.trim());
+        });
+    });
+
+    if (answer !== 'YES') {
+        console.log(colors.muted('\n  Uninstall cancelled.\n'));
+        return false;
+    }
+
+    console.log('');
+    let ok = true;
+
+    // 1. Remove the global npm package
+    const pkgName = pkg.name; // reads name from package.json
+    await new Promise((res) => {
+        console.log(colors.muted(`  ${icons.spark} Removing npm package "${pkgName}"...`));
+        const proc = spawn('npm', ['uninstall', '-g', pkgName], { stdio: 'inherit', shell: true });
+        proc.on('close', (code) => {
+            if (code !== 0) { ok = false; console.log(colors.error(`  ${icons.cross} npm uninstall failed (exit ${code}).`)); }
+            res();
+        });
+        proc.on('error', (err) => { ok = false; console.log(colors.error(`  ${icons.cross} ${err.message}`)); res(); });
+    });
+
+    // 2. Remove ~/.cli-bot config directory
+    const configDir = join(homedir(), '.cli-bot');
+    if (existsSync(configDir)) {
+        try {
+            const { rmSync } = await import('fs');
+            rmSync(configDir, { recursive: true, force: true });
+            console.log(colors.muted(`  ${icons.spark} Removed config folder ~/.cli-bot/`));
+        } catch (err) {
+            ok = false;
+            console.log(colors.error(`  ${icons.cross} Could not remove ~/.cli-bot/: ${err.message}`));
+        }
+    }
+
+    // 3. Remove supabase MCP entry from ~/.gemini/settings.json
+    const geminiSettings = join(homedir(), '.gemini', 'settings.json');
+    if (existsSync(geminiSettings)) {
+        try {
+            const s = JSON.parse(readFileSync(geminiSettings, 'utf-8'));
+            if (s.mcpServers?.supabase) {
+                delete s.mcpServers.supabase;
+                if (Object.keys(s.mcpServers).length === 0) delete s.mcpServers;
+                writeFileSync(geminiSettings, JSON.stringify(s, null, 2) + '\n');
+                console.log(colors.muted(`  ${icons.spark} Removed Supabase MCP entry from ~/.gemini/settings.json`));
+            }
+        } catch (err) {
+            console.log(colors.muted(`  (Could not update ~/.gemini/settings.json: ${err.message})`));
+        }
+    }
+
+    if (ok) {
+        console.log(`\n  ${colors.success(icons.check)} MiniGeri has been completely uninstalled. Goodbye! 👋\n`);
+    } else {
+        console.log(`\n  ${colors.warning(icons.spark)} Uninstall completed with some errors (see above).\n`);
+    }
+    return ok;
+}
+
 function handleShellCommand(cmd) {
     return new Promise((resolve) => {
         console.log(colors.muted(`  $ ${cmd}\n`));
@@ -1315,16 +1423,8 @@ async function main() {
     const args = process.argv.slice(2);
     if (args.length > 0) {
         if (args[0] === 'uninstall') {
-            console.log(colors.warning(`\n  ${icons.cross} Uninstalling minigeri globally...`));
-            const proc = spawn('npm', ['uninstall', '-g', 'cli-bot'], {
-                stdio: 'inherit',
-                shell: true
-            });
-            proc.on('close', () => {
-                console.log(colors.success(`\n  ${icons.check} minigeri has been uninstalled.\n`));
-                process.exit(0);
-            });
-            return;
+            await handleUninstall();
+            process.exit(0);
         }
 
         if (args[0] === 'update') {
@@ -1703,10 +1803,9 @@ async function main() {
                     return;
 
                 case 'uninstall':
-                    console.log(colors.warning(`\n  ${icons.cross} Uninstalling minigeri globally...`));
-                    await handleShellCommand('npm uninstall -g cli-bot');
-                    console.log(colors.success(`  ${icons.check} minigeri has been uninstalled.\n`));
+                    await handleUninstall();
                     rl.close();
+                    process.exit(0);
                     return;
 
                 default:
