@@ -17,7 +17,7 @@ import { showHelp } from './ui/help.js';
 import { showTutorial } from './ui/tutorial.js';
 import { createAgent, listAgentNames } from './agents/index.js';
 import { loadConfig, getAgent, saveConfig, syncConfigToEnv } from './config.js';
-import { waConnect, waSend, waStatus, waDisconnect } from './services/whatsapp.js';
+
 import {
     slackConnect, slackAutoConnect, slackSend, slackRead,
     slackChannels, slackStatus, slackDisconnect,
@@ -29,6 +29,9 @@ import {
 import { handleNgrok, stopNgrok, isNgrokRunning } from './services/ngrok.js';
 import { registerCommand } from './tools/command-runner.js';
 import { checkForUpdates } from './utils/version.js';
+import { handleWhatsApp } from './handlers/whatsapp.js';
+import { handleSlack } from './handlers/slack.js';
+import { handleTelegram } from './handlers/telegram.js';
 
 // Load env
 const __filename = fileURLToPath(import.meta.url);
@@ -734,132 +737,8 @@ async function handleOctopus(args, rl) {
     rl.setPrompt(getPrompt());
 }
 
-async function handleWhatsApp(args) {
-    const subcommand = args[0]?.toLowerCase();
 
-    switch (subcommand) {
-        case 'connect':
-            await waConnect();
-            break;
 
-        case 'send': {
-            const to = args[1];
-            const message = args.slice(2).join(' ');
-            if (!to || !message) {
-                console.log(colors.warning(`  Usage: ${colors.whatsapp('wa send <phone_number> <message>')}`));
-                console.log(colors.muted('  Example: wa send 34612345678 Hello there!'));
-                return;
-            }
-            await waSend(to, message);
-            break;
-        }
-
-        case 'status':
-            waStatus();
-            break;
-
-        case 'disconnect':
-            await waDisconnect();
-            break;
-
-        default:
-            console.log(colors.warning(`  Unknown WhatsApp command: ${subcommand || '(none)'}`));
-            console.log(colors.muted('  Available: connect, send, status, disconnect'));
-            break;
-    }
-}
-
-async function handleSlack(args) {
-    const subcommand = args[0]?.toLowerCase();
-
-    switch (subcommand) {
-        case 'connect':
-            await slackConnect();
-            break;
-
-        case 'send': {
-            const channel = args[1];
-            const message = args.slice(2).join(' ');
-            if (!channel || !message) {
-                console.log(colors.warning(`  Usage: ${colors.highlight('slack send <channel> <message>')}`));
-                console.log(colors.muted('  Example: slack send general Hello team!'));
-                return;
-            }
-            await slackSend(channel, message);
-            break;
-        }
-
-        case 'read': {
-            const channel = args[1];
-            const count = parseInt(args[2]) || 10;
-            if (!channel) {
-                console.log(colors.warning(`  Usage: ${colors.highlight('slack read <channel> [count]')}`));
-                console.log(colors.muted('  Example: slack read general 20'));
-                return;
-            }
-            await slackRead(channel, count);
-            break;
-        }
-
-        case 'channels':
-        case 'ch':
-            await slackChannels();
-            break;
-
-        case 'status':
-            slackStatus();
-            break;
-
-        case 'disconnect':
-            slackDisconnect();
-            break;
-
-        default:
-            console.log(colors.warning(`  Unknown Slack command: ${subcommand || '(none)'}`));
-            console.log(colors.muted('  Available: connect, send, read, channels, status, disconnect'));
-            break;
-    }
-}
-
-async function handleTelegram(args) {
-    const subcommand = args[0]?.toLowerCase();
-
-    switch (subcommand) {
-        case 'connect':
-            await tgConnect();
-            break;
-
-        case 'send': {
-            const chatId = args[1];
-            const message = args.slice(2).join(' ');
-            if (!chatId || !message) {
-                console.log(colors.warning(`  Usage: ${colors.telegram('tg send <chat_id> <message>')}`));
-                console.log(colors.muted('  Example: tg send 123456789 Hello there!'));
-                console.log(colors.muted('  Tip: Use tg chats to find chat IDs'));
-                return;
-            }
-            await tgSend(chatId, message);
-            break;
-        }
-
-        case 'chats':
-            tgChats();
-            break;
-
-        case 'status':
-            tgStatus();
-            break;
-
-        case 'disconnect':
-            await tgDisconnect();
-            break;
-
-        default:
-            console.log(colors.warning(`  Unknown Telegram command: ${subcommand || '(none)'}`));
-            console.log(colors.muted('  Available: connect, send, chats, status, disconnect'));
-            break;
-    }
-}
 
 async function handleFolder() {
     const cwd = process.cwd();
