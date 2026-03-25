@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, symlinkSync, rmSync } from 'fs';
-import { join, resolve } from 'path';
+import { join } from 'path';
 import { homedir } from 'os';
 import { BaseAgent } from './base.js';
 import { execAgent, execInteractive } from '../executor.js';
