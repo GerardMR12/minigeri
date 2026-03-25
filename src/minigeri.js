@@ -275,7 +275,7 @@ function getOllamaAgent() {
         ollamaAgent = createAgent('ollama', agentConfig);
         ollamaModelName = agentConfig.model;
         // Pre-check tool support in the background
-        ollamaAgent.checkToolSupport().catch(() => { });
+        ollamaAgent.checkToolSupport().catch(() => { /* explicitly ignore background error */ });
     }
     return { agent: ollamaAgent, agentConfig };
 }
@@ -1722,8 +1722,8 @@ async function main() {
     const cleanup = () => {
         stopNgrok();
         slackDisconnect();
-        tgDisconnect().catch(() => { });
-        waDisconnect().catch(() => { });
+        tgDisconnect().catch(() => { /* ignore error during shutdown */ });
+        waDisconnect().catch(() => { /* ignore error during shutdown */ });
     };
 
     process.on('SIGINT', () => {
