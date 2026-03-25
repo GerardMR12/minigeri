@@ -136,7 +136,6 @@ async function handleClaude(args, rl) {
         return;
     }
 
-    const prompt = args.join(' ').trim();
     const { agent, isApi } = getClaudeAgent();
 
     // For API mode, check the key is set before even creating the agent
@@ -163,31 +162,62 @@ async function handleClaude(args, rl) {
         return;
     }
 
-    if (!prompt) {
-        console.log(colors.claude(`\n  ${icons.spark} Launching Claude Code interactive mode...`));
-        console.log(colors.muted('  (You\'ll return here when you exit Claude)\n'));
-
-        rl.pause();
-        try {
-            await agent.interactive();
-        } catch (err) {
-            console.log(colors.error(`  ${icons.cross} Error: ${err.message}`));
+    switch (subcommand) {
+        case 'clear':
+        case 'reset': {
+            agent.clearHistory();
+            console.log(`\n  ${colors.success(icons.check)} Conversation history cleared\n`);
+            break;
         }
-        console.log(colors.muted(`\n  ${icons.check} Back to minigeri\n`));
-        rl.resume();
-        rl.prompt();
-        return;
-    }
 
-    console.log(colors.claude(`\n  ${icons.spark} Asking Claude...`));
-    console.log(colors.muted('  ─────────────────────────────────────────────\n'));
-    try {
-        await agent.send(prompt);
-        console.log(colors.muted('\n  ─────────────────────────────────────────────'));
-    } catch (err) {
-        console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
+        case 'history':
+        case 'ctx': {
+            const stats = agent.getHistoryStats();
+            console.log(`\n  ${colors.claude.bold('Conversation History')} ${colors.muted('— Claude Code')}`);
+            console.log(colors.muted('  ─────────────────────────────────────────────'));
+            if (stats.turns === 0) {
+                console.log(colors.muted('  No conversation yet. Send a prompt to start.'));
+            } else {
+                console.log(colors.muted(`  ${stats.turns} turn(s) in current session`));
+                if (!isApi && agent.sessionId) {
+                    console.log(colors.muted(`  Session ID: ${agent.sessionId}`));
+                }
+            }
+            console.log('');
+            break;
+        }
+
+        case undefined: {
+            console.log(colors.claude(`\n  ${icons.spark} Launching Claude Code interactive mode...`));
+            console.log(colors.muted('  (You\'ll return here when you exit Claude)\n'));
+            rl.pause();
+            try {
+                await agent.interactive();
+            } catch (err) {
+                console.log(colors.error(`  ${icons.cross} Error: ${err.message}`));
+            }
+            console.log(colors.muted(`\n  ${icons.check} Back to minigeri\n`));
+            rl.resume();
+            rl.prompt();
+            return;
+        }
+
+        default: {
+            const prompt = args.join(' ').trim();
+            const stats = agent.getHistoryStats();
+            const ctxLabel = stats.turns > 0 ? colors.muted(` (turn ${stats.turns + 1}, with context)`) : '';
+            console.log(colors.claude(`\n  ${icons.spark} Asking Claude...`) + ctxLabel);
+            console.log(colors.muted('  ─────────────────────────────────────────────\n'));
+            try {
+                await agent.send(prompt);
+                console.log(colors.muted('\n  ─────────────────────────────────────────────'));
+            } catch (err) {
+                console.log(colors.error(`\n  ${icons.cross} Error: ${err.message}`));
+            }
+            console.log('');
+            break;
+        }
     }
-    console.log('');
 }
 
 async function handleGemini(args, rl) {

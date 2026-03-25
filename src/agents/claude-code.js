@@ -9,6 +9,10 @@ export class ClaudeCodeAgent extends BaseAgent {
     constructor(config = {}) {
         super('claude-code', config);
         this.command = config.command || 'claude';
+        this.sessionId = null;
+        // null = no workspace context. undefined = not yet evaluated.
+        this.sessionContext = undefined;
+        this.turnCount = 0;
     }
 
     _getCleanEnv() {
@@ -52,27 +56,73 @@ export class ClaudeCodeAgent extends BaseAgent {
         return bridgeDir;
     }
 
-    async send(message, context = {}) {
+    _parseResponse(stdout, silent) {
+        const jsonStart = stdout.indexOf('{');
+        if (jsonStart === -1) throw new Error('No JSON found in output');
+        const data = JSON.parse(stdout.substring(jsonStart));
+        if (data.session_id) this.sessionId = data.session_id;
+        this.turnCount++;
+        const text = data.result || '';
+        if (!silent && text) process.stdout.write(text + '\n');
+        return text.trim();
+    }
+
+    async send(message, options = {}) {
+        const silent = options.silent || false;
         const config = loadConfig();
         const bridgeDir = this._ensureWorkspaceBridge(config);
 
-        const args = ['-p', message, '--dangerously-skip-permissions'];
+        // Determine current workspace context key
+        const currentContext = (config.activeWorkspace && config.workspaces?.[config.activeWorkspace])
+            ? config.activeWorkspace : null;
 
-        // Add conversation continuation if available
-        if (context.conversationId) {
-            args.push('--conversation', context.conversationId);
+        // Reset session if workspace context changed
+        if (this.sessionContext !== undefined && this.sessionContext !== currentContext) {
+            this.sessionId = null;
+            this.turnCount = 0;
         }
+        this.sessionContext = currentContext;
 
-        const result = await execAgent(this.command, args, { 
+        const args = ['-p', message, '--dangerously-skip-permissions', '--output-format', 'json'];
+        if (this.sessionId) args.push('--resume', this.sessionId);
+
+        const result = await execAgent(this.command, args, {
             env: this._getCleanEnv(),
-            cwd: bridgeDir 
+            cwd: bridgeDir,
+            silent: true,
         });
 
         if (result.code !== 0) {
+            // Session may have expired — retry fresh without --resume
+            if (this.sessionId) {
+                this.sessionId = null;
+                this.turnCount = 0;
+                const retryArgs = ['-p', message, '--dangerously-skip-permissions', '--output-format', 'json'];
+                const retry = await execAgent(this.command, retryArgs, {
+                    env: this._getCleanEnv(), cwd: bridgeDir, silent: true,
+                });
+                if (retry.code !== 0) {
+                    throw new Error(`Claude Code exited with code ${retry.code}: ${retry.stderr || retry.stdout}`);
+                }
+                try { return this._parseResponse(retry.stdout, silent); }
+                catch { if (!silent) process.stdout.write(retry.stdout); return retry.stdout.trim(); }
+            }
             throw new Error(`Claude Code exited with code ${result.code}: ${result.stderr || result.stdout}`);
         }
 
-        return result.stdout.trim();
+        try { return this._parseResponse(result.stdout, silent); }
+        catch { if (!silent) process.stdout.write(result.stdout); return result.stdout.trim(); }
+    }
+
+    clearHistory() {
+        super.clearHistory();
+        this.sessionId = null;
+        this.sessionContext = undefined;
+        this.turnCount = 0;
+    }
+
+    getHistoryStats() {
+        return { turns: this.turnCount, messages: this.turnCount * 2 };
     }
 
     async interactive() {
