@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import fs from 'fs';
 import { homedir } from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -62,16 +62,16 @@ const DEFAULT_CONFIG = {
 };
 
 export function ensureConfigDir() {
-    if (!existsSync(CONFIG_DIR)) {
-        mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+    if (!fs.existsSync(CONFIG_DIR)) {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
     }
 }
 
 export function loadConfig() {
     ensureConfigDir();
-    if (existsSync(CONFIG_FILE)) {
+    if (fs.existsSync(CONFIG_FILE)) {
         try {
-            const raw = readFileSync(CONFIG_FILE, 'utf-8');
+            const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
             const saved = JSON.parse(raw);
 
             // Deep-merge agents so defaults are always preserved
@@ -92,7 +92,7 @@ export function loadConfig() {
 
 export function saveConfig(config) {
     ensureConfigDir();
-    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
 }
 
 export function syncConfigToEnv() {
