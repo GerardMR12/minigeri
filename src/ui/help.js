@@ -1,4 +1,4 @@
-import { colors, drawBox, icons } from './theme.js';
+import { colors, drawBox } from './theme.js';
 
 export function getHelpText() {
     return `🤖 *minigeri messaging help*
