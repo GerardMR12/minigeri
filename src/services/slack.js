@@ -144,19 +144,20 @@ export async function slackRead(channel, count = 10) {
 
         // Fetch user names for display
         const userCache = {};
+        const uniqueUsers = [...new Set(result.messages.map((msg) => msg.user).filter(Boolean))];
+
+        // Fetch user info concurrently to avoid N+1 API calls
+        await Promise.all(uniqueUsers.map(async (userId) => {
+            try {
+                const userInfo = await client.users.info({ user: userId });
+                userCache[userId] = userInfo.user.real_name || userInfo.user.name;
+            } catch {
+                userCache[userId] = userId;
+            }
+        }));
 
         for (const msg of result.messages.reverse()) {
-            let username = msg.user || 'bot';
-            if (msg.user && !userCache[msg.user]) {
-                try {
-                    const userInfo = await client.users.info({ user: msg.user });
-                    userCache[msg.user] = userInfo.user.real_name || userInfo.user.name;
-                } catch {
-                    userCache[msg.user] = msg.user;
-                }
-            }
-            username = userCache[msg.user] || username;
-
+            const username = userCache[msg.user] || msg.user || 'bot';
             const time = new Date(parseFloat(msg.ts) * 1000).toLocaleTimeString();
             console.log(`  ${colors.muted(time)} ${colors.slack.bold(username)}`);
             console.log(`  ${colors.text(msg.text)}`);
