@@ -804,6 +804,7 @@ const CONFIG_KEYS = [
     { env: 'SLACK_BOT_TOKEN', resolve: (c) => c.slackBotToken, apply: (c, v) => { c.slackBotToken = v; } },
     { env: 'TELEGRAM_BOT_TOKEN', resolve: (c) => c.telegramBotToken, apply: (c, v) => { c.telegramBotToken = v; } },
     { env: 'TELEGRAM_ALLOWED_USERS', resolve: (c) => c.telegramAllowedUsers, apply: (c, v) => { c.telegramAllowedUsers = v; } },
+    { env: 'WHATSAPP_ALLOWED_USERS', resolve: (c) => c.whatsappAllowedUsers, apply: (c, v) => { c.whatsappAllowedUsers = v; } },
     { env: 'SUPABASE_MCP_URL', resolve: (c) => c.supabaseMcpUrl, apply: (c, v) => { c.supabaseMcpUrl = v; } },
     { env: 'SUPABASE_ACCESS_TOKEN', resolve: (c) => c.supabaseAccessToken, apply: (c, v) => { c.supabaseAccessToken = v; } },
 ];
