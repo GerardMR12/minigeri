@@ -1016,7 +1016,9 @@ async function handleStatus() {
 
     // AI Agents
     console.log(colors.text.bold('\n  AI Agents'));
-    for (const name of agentNames) {
+
+    // Check all agents concurrently
+    const statusPromises = agentNames.map(async (name) => {
         const agentConfig = config.agents[name] || {};
         const agent = createAgent(name, agentConfig);
         const available = await agent.isAvailable();
@@ -1031,7 +1033,12 @@ async function handleStatus() {
         else if (name === 'groq') color = colors.groq;
         else color = colors.primary;
 
-        console.log(`  ${status}  ${color.bold(name)}`);
+        return `  ${status}  ${color.bold(name)}`;
+    });
+
+    const statuses = await Promise.all(statusPromises);
+    for (const statusLine of statuses) {
+        console.log(statusLine);
     }
 
     // Messaging
