@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert';
 import { createAgent, listAgentNames } from '../src/agents/index.js';
 import { BaseAgent } from '../src/agents/base.js';
+import { ClaudeCodeAgent } from '../src/agents/claude-code.js';
 
 describe('Agent Factory', () => {
     test('createAgent should throw an error for an unknown agent', () => {
@@ -23,6 +24,12 @@ describe('Agent Factory', () => {
             assert.ok(agent instanceof BaseAgent, `Agent ${name} should be an instance of BaseAgent`);
             assert.strictEqual(agent.name, name);
         }
+    });
+
+    test('createAgent should return an instance of ClaudeCodeAgent for "claude-code"', () => {
+        const agent = createAgent('claude-code');
+        assert.ok(agent instanceof ClaudeCodeAgent, 'Agent should be an instance of ClaudeCodeAgent');
+        assert.strictEqual(agent.name, 'claude-code');
     });
 
     test('listAgentNames should return a non-empty array of agent names', () => {
