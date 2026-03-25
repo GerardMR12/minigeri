@@ -63,16 +63,16 @@ const DEFAULT_CONFIG = {
 };
 
 export function ensureConfigDir() {
-    if (!fs.existsSync(CONFIG_DIR)) {
-        fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+    if (!existsSync(CONFIG_DIR)) {
+        mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
     }
 }
 
 export function loadConfig() {
     ensureConfigDir();
-    if (fs.existsSync(CONFIG_FILE)) {
+    if (existsSync(CONFIG_FILE)) {
         try {
-            const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
+            const raw = readFileSync(CONFIG_FILE, 'utf-8');
             const saved = JSON.parse(raw);
 
             // Deep-merge agents so defaults are always preserved
