@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { loadConfig, saveConfig, getAgent } from '../config.js';
+import { loadConfig, saveConfig } from '../config.js';
 import { createAgent, listAgentNames } from '../agents/index.js';
 
 /**

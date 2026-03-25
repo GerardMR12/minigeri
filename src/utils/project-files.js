@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs';
-import { join, relative, resolve } from 'path';
+import { join, relative, resolve, basename } from 'path';
 
 // Binary / non-text extensions to skip
 const BINARY_EXT = new Set([
@@ -69,7 +69,7 @@ export function listProjectFiles(rootDirs) {
             const absPath = resolve(absRoot, relPath);
             if (!absPath.startsWith(absRoot)) return false;
 
-            const fileName = relPath.split('/').pop();
+            const fileName = basename(relPath);
             if (isEnvFile(fileName)) return false;
             if (isBinary(relPath)) return false;
             if (relPath.includes('node_modules/')) return false;
@@ -78,7 +78,7 @@ export function listProjectFiles(rootDirs) {
         });
 
         // If multi-root, prefix files with their root folder name to disambiguate
-        const prefix = roots.length > 1 ? `${absRoot.split('/').pop()}/` : '';
+        const prefix = roots.length > 1 ? `${basename(absRoot)}/` : '';
         allFiles.push(...filtered.map(f => prefix + f));
     }
 
@@ -101,7 +101,7 @@ export function readProjectFile(rootDirs, filePath) {
         
         // If multi-root, the filePath might be prefixed with the root folder name
         let targetPath = filePath;
-        const rootName = absRoot.split('/').pop();
+        const rootName = basename(absRoot);
         if (roots.length > 1 && filePath.startsWith(rootName + '/')) {
             targetPath = filePath.slice(rootName.length + 1);
         }
@@ -114,7 +114,7 @@ export function readProjectFile(rootDirs, filePath) {
         }
 
         // Block .env files
-        const fileName = targetPath.split('/').pop();
+        const fileName = basename(targetPath);
         if (isEnvFile(fileName)) {
             return '[Error: Access denied — .env files are restricted]';
         }
@@ -203,9 +203,9 @@ function isIgnored(relPath, patterns) {
             const regex = new RegExp(
                 '^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$'
             );
-            if (regex.test(relPath) || regex.test(relPath.split('/').pop())) return true;
+            if (regex.test(relPath) || regex.test(basename(relPath))) return true;
         } else {
-            if (relPath === pattern || relPath.split('/').pop() === pattern) return true;
+            if (relPath === pattern || basename(relPath) === pattern) return true;
         }
     }
     return false;
