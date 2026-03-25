@@ -59,6 +59,13 @@ export async function tgConnect() {
     try {
         bot = new TelegramBot(token, { polling: true });
 
+        bot.on('polling_error', (err) => {
+            // Only log meaningful errors, not cancellations
+            if (err.code !== 'ETELEGRAM' || !err.message.includes('terminated')) {
+                console.log(colors.error(`\n  ${icons.cross} Telegram polling error: ${err.message}`));
+            }
+        });
+
         // Get bot info
         botInfoCache = await bot.getMe();
         isConnected = true;
@@ -79,13 +86,6 @@ export async function tgConnect() {
 
         // Handle incoming messages
         bot.on('message', (msg) => handleIncomingMessage(msg, bot));
-
-        bot.on('polling_error', (err) => {
-            // Only log meaningful errors, not cancellations
-            if (err.code !== 'ETELEGRAM' || !err.message.includes('terminated')) {
-                console.log(colors.error(`\n  ${icons.cross} Telegram polling error: ${err.message}`));
-            }
-        });
 
     } catch (err) {
         // Stop polling if it was already started before the failure
@@ -108,13 +108,14 @@ export async function tgAutoConnect() {
 
     try {
         bot = new TelegramBot(token, { polling: true });
+
+        bot.on('polling_error', () => { }); // Suppress in auto-connect immediately to avoid unhandled logging
+
         botInfoCache = await bot.getMe();
         isConnected = true;
 
         // Set up message listener silently
         bot.on('message', (msg) => handleIncomingMessage(msg, bot));
-
-        bot.on('polling_error', () => { }); // Suppress in auto-connect
 
     } catch {
         // Token exists but is invalid or bot was deleted — stop polling and clean up
