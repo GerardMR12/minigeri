@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from 'fs';
 import { homedir } from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,22 +56,23 @@ const DEFAULT_CONFIG = {
     slackBotToken: process.env.SLACK_BOT_TOKEN || '',
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     telegramAllowedUsers: process.env.TELEGRAM_ALLOWED_USERS || '',
+    whatsappAllowedUsers: process.env.WHATSAPP_ALLOWED_USERS || '',
     theme: 'default',
     workspaces: {},
     activeWorkspace: null,
 };
 
 export function ensureConfigDir() {
-    if (!existsSync(CONFIG_DIR)) {
-        mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
+    if (!fs.existsSync(CONFIG_DIR)) {
+        fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
     }
 }
 
 export function loadConfig() {
     ensureConfigDir();
-    if (existsSync(CONFIG_FILE)) {
+    if (fs.existsSync(CONFIG_FILE)) {
         try {
-            const raw = readFileSync(CONFIG_FILE, 'utf-8');
+            const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
             const saved = JSON.parse(raw);
 
             // Deep-merge agents so defaults are always preserved
@@ -93,6 +94,7 @@ export function loadConfig() {
 export function saveConfig(config) {
     ensureConfigDir();
     writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
+    chmodSync(CONFIG_FILE, 0o600);
 }
 
 export function syncConfigToEnv() {
@@ -103,6 +105,7 @@ export function syncConfigToEnv() {
     if (config.slackBotToken) process.env.SLACK_BOT_TOKEN = config.slackBotToken;
     if (config.telegramBotToken) process.env.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
     if (config.telegramAllowedUsers) process.env.TELEGRAM_ALLOWED_USERS = config.telegramAllowedUsers;
+    if (config.whatsappAllowedUsers) process.env.WHATSAPP_ALLOWED_USERS = config.whatsappAllowedUsers;
 }
 
 export function getAgent(name) {

@@ -162,6 +162,8 @@ minigeri ▸ wa send 34612345678 Hello from minigeri!
 - Example for a Spanish number: `34612345678`
 - Example for a US number: `14155551234`
 
+**🔒 Security**: Use `config set WHATSAPP_ALLOWED_USERS <number>` to restrict who can use the bot. Without it, **anyone** who messages your bot can use your AI keys and run commands!
+
 **Important notes:**
 - WhatsApp Web only allows one linked session besides your phone. If you link a browser, your minigeri session will disconnect.
 - The first connection requires scanning the QR code. Subsequent launches will auto-reconnect.
@@ -315,6 +317,7 @@ All keys and tokens can be set using the `config set <KEY> <VALUE>` command insi
 | `SLACK_BOT_TOKEN` | For Slack | Slack Bot User OAuth Token (`xoxb-...`) |
 | `TELEGRAM_BOT_TOKEN` | For Telegram | Telegram Bot Token (`123456789:ABC...`) |
 | `TELEGRAM_ALLOWED_USERS` | Recommended | Comma-separated Telegram user IDs allowed to use the bot |
+| `WHATSAPP_ALLOWED_USERS` | Recommended | Comma-separated WhatsApp phone numbers allowed to use the bot |
 | `DEFAULT_AGENT` | No | Default AI agent: `claude-code` or `gemini-cli` (default: `claude-code`) |
 | `CLAUDE_CODE_PATH` | No | Path to Claude Code binary if not in PATH (default: `claude`) |
 | `GEMINI_CLI_PATH` | No | Path to Gemini CLI binary if not in PATH (default: `gemini`) |
