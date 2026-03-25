@@ -23,6 +23,17 @@ let claudeAgents = new Map(); // chatId → ClaudeAgent (persistent for context)
 const AUTH_PATH = join(homedir(), '.cli-bot', 'whatsapp-auth');
 
 /**
+ * Parse the allowed WhatsApp users (phone numbers) from the environment.
+ * Returns null if not set (open access — NOT recommended).
+ * Returns a Set of allowed user numbers strings if set.
+ */
+function getAllowedUsers() {
+    const raw = process.env.WHATSAPP_ALLOWED_USERS;
+    if (!raw || raw.trim() === '') return null;
+    return new Set(raw.split(',').map(id => id.trim().replace(/[^0-9]/g, '')).filter(Boolean));
+}
+
+/**
  * Get the WhatsApp client, creating it if needed.
  */
 function getClient() {
@@ -136,6 +147,12 @@ export function waStatus() {
             console.log(colors.muted(`    Phone: ${info.wid?.user || 'unknown'}`));
             console.log(colors.muted(`    Platform: ${info.platform || 'unknown'}`));
         }
+        const allowed = getAllowedUsers();
+        if (allowed) {
+            console.log(colors.muted(`    🔒 Restricted to ${allowed.size} allowed user(s)`));
+        } else {
+            console.log(colors.warning(`    ⚠️  Open access (use config set WHATSAPP_ALLOWED_USERS <number> for security)`));
+        }
     } else if (isConnecting) {
         console.log(colors.warning(`  ${icons.circle} WhatsApp: Connecting...`));
     } else {
@@ -166,6 +183,26 @@ async function handleIncomingMessage(msg) {
     const body = msg.body || '';
     const contact = await msg.getContact();
     const sender = contact.pushname || contact.name || from;
+    const senderNumber = from.replace(/[^0-9]/g, '');
+
+    // ─── Access Control ───────────────────────────────────────────
+    const allowed = getAllowedUsers();
+    if (allowed && !allowed.has(senderNumber)) {
+        console.log('');
+        console.log(colors.warning(`  🚫 Unauthorized WhatsApp message blocked`));
+        console.log(colors.muted(`     From: ${sender} (number: ${senderNumber})`));
+        console.log(colors.muted(`     Text: ${body || '[non-text]'}`));
+        console.log(colors.muted(`     Run: ${colors.primary(`config set WHATSAPP_ALLOWED_USERS ${senderNumber}`)} to allow access`));
+        console.log('');
+        process.stdout.write(colors.primary('  minigeri ▸ '));
+
+        try {
+            await msg.reply('🔒 Access denied. You are not authorized to use this bot.');
+        } catch {
+            // Ignore send errors for unauthorized users
+        }
+        return;
+    }
 
     console.log('');
     console.log(colors.whatsapp(`  📩 WhatsApp Message`));

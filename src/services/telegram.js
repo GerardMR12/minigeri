@@ -19,12 +19,12 @@ let claudeAgents = new Map(); // chatId → ClaudeAgent (persistent for context)
 
 /**
  * Parse the allowed Telegram user IDs from the environment.
- * Returns null if not set (open access — NOT recommended).
+ * Returns an empty set if not set (fails closed — highly recommended).
  * Returns a Set of allowed user ID strings if set.
  */
 function getAllowedUsers() {
     const raw = process.env.TELEGRAM_ALLOWED_USERS;
-    if (!raw || raw.trim() === '') return null;
+    if (!raw || raw.trim() === '') return new Set();
     return new Set(raw.split(',').map(id => id.trim()).filter(Boolean));
 }
 
@@ -59,6 +59,13 @@ export async function tgConnect() {
     try {
         bot = new TelegramBot(token, { polling: true });
 
+        bot.on('polling_error', (err) => {
+            // Only log meaningful errors, not cancellations
+            if (err.code !== 'ETELEGRAM' || !err.message.includes('terminated')) {
+                console.log(colors.error(`\n  ${icons.cross} Telegram polling error: ${err.message}`));
+            }
+        });
+
         // Get bot info
         botInfoCache = await bot.getMe();
         isConnected = true;
@@ -68,24 +75,17 @@ export async function tgConnect() {
         console.log(colors.muted(`    Bot ID: ${botInfoCache.id}`));
 
         const allowed = getAllowedUsers();
-        if (allowed) {
+        if (allowed.size > 0) {
             console.log(colors.muted(`    🔒 Access restricted to ${allowed.size} allowed user(s)`));
         } else {
-            console.log(colors.warning(`    ⚠️  TELEGRAM_ALLOWED_USERS not set — anyone can use this bot!`));
-            console.log(colors.muted(`    Run: ${colors.primary('config set TELEGRAM_ALLOWED_USERS <your_user_id>')} for security`));
+            console.log(colors.warning(`    ⚠️  TELEGRAM_ALLOWED_USERS not set — bot is locked down and will reject all messages.`));
+            console.log(colors.muted(`    Run: ${colors.primary('config set TELEGRAM_ALLOWED_USERS <your_user_id>')} to allow access`));
         }
 
         console.log(colors.muted(`    Listening for incoming messages...`));
 
         // Handle incoming messages
         bot.on('message', (msg) => handleIncomingMessage(msg, bot));
-
-        bot.on('polling_error', (err) => {
-            // Only log meaningful errors, not cancellations
-            if (err.code !== 'ETELEGRAM' || !err.message.includes('terminated')) {
-                console.log(colors.error(`\n  ${icons.cross} Telegram polling error: ${err.message}`));
-            }
-        });
 
     } catch (err) {
         // Stop polling if it was already started before the failure
@@ -108,13 +108,14 @@ export async function tgAutoConnect() {
 
     try {
         bot = new TelegramBot(token, { polling: true });
+
+        bot.on('polling_error', () => { }); // Suppress in auto-connect immediately to avoid unhandled logging
+
         botInfoCache = await bot.getMe();
         isConnected = true;
 
         // Set up message listener silently
         bot.on('message', (msg) => handleIncomingMessage(msg, bot));
-
-        bot.on('polling_error', () => { }); // Suppress in auto-connect
 
     } catch {
         // Token exists but is invalid or bot was deleted — stop polling and clean up
@@ -187,10 +188,10 @@ export function tgStatus() {
         console.log(colors.muted(`    Bot: @${botInfoCache.username} (${botInfoCache.first_name})`));
         console.log(colors.muted(`    Recent chats: ${recentChats.size}`));
         const allowed = getAllowedUsers();
-        if (allowed) {
+        if (allowed.size > 0) {
             console.log(colors.muted(`    🔒 Restricted to ${allowed.size} allowed user(s)`));
         } else {
-            console.log(colors.warning(`    ⚠️  Open access (use config set TELEGRAM_ALLOWED_USERS <id> for security)`));
+            console.log(colors.warning(`    ⚠️  Locked down: No allowed users (use config set TELEGRAM_ALLOWED_USERS <id> to allow access)`));
         }
     } else if (process.env.TELEGRAM_BOT_TOKEN) {
         console.log(colors.warning(`  ${icons.circle} Telegram: Token set but not connected`));
@@ -230,7 +231,7 @@ async function handleIncomingMessage(msg, botInstance) {
 
     // ─── Access Control ───────────────────────────────────────────
     const allowed = getAllowedUsers();
-    if (allowed && !allowed.has(senderId)) {
+    if (!allowed.has(senderId)) {
         console.log('');
         console.log(colors.warning(`  🚫 Unauthorized Telegram message blocked`));
         console.log(colors.muted(`     From: ${sender} (user ID: ${senderId}, chat: ${chatId})`));

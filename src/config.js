@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import fs from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, chmodSync } from 'fs';
 import { homedir } from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +56,7 @@ const DEFAULT_CONFIG = {
     slackBotToken: process.env.SLACK_BOT_TOKEN || '',
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     telegramAllowedUsers: process.env.TELEGRAM_ALLOWED_USERS || '',
+    whatsappAllowedUsers: process.env.WHATSAPP_ALLOWED_USERS || '',
     theme: 'default',
     workspaces: {},
     activeWorkspace: null,
@@ -92,7 +93,8 @@ export function loadConfig() {
 
 export function saveConfig(config) {
     ensureConfigDir();
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
+    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
+    chmodSync(CONFIG_FILE, 0o600);
 }
 
 export function syncConfigToEnv() {
@@ -103,6 +105,7 @@ export function syncConfigToEnv() {
     if (config.slackBotToken) process.env.SLACK_BOT_TOKEN = config.slackBotToken;
     if (config.telegramBotToken) process.env.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
     if (config.telegramAllowedUsers) process.env.TELEGRAM_ALLOWED_USERS = config.telegramAllowedUsers;
+    if (config.whatsappAllowedUsers) process.env.WHATSAPP_ALLOWED_USERS = config.whatsappAllowedUsers;
 }
 
 export function getAgent(name) {

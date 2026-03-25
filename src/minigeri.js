@@ -275,7 +275,7 @@ function getOllamaAgent() {
         ollamaAgent = createAgent('ollama', agentConfig);
         ollamaModelName = agentConfig.model;
         // Pre-check tool support in the background
-        ollamaAgent.checkToolSupport().catch(() => { });
+        ollamaAgent.checkToolSupport().catch(() => { /* explicitly ignore background error */ });
     }
     return { agent: ollamaAgent, agentConfig };
 }
@@ -804,6 +804,7 @@ const CONFIG_KEYS = [
     { env: 'SLACK_BOT_TOKEN', resolve: (c) => c.slackBotToken, apply: (c, v) => { c.slackBotToken = v; } },
     { env: 'TELEGRAM_BOT_TOKEN', resolve: (c) => c.telegramBotToken, apply: (c, v) => { c.telegramBotToken = v; } },
     { env: 'TELEGRAM_ALLOWED_USERS', resolve: (c) => c.telegramAllowedUsers, apply: (c, v) => { c.telegramAllowedUsers = v; } },
+    { env: 'WHATSAPP_ALLOWED_USERS', resolve: (c) => c.whatsappAllowedUsers, apply: (c, v) => { c.whatsappAllowedUsers = v; } },
     { env: 'SUPABASE_MCP_URL', resolve: (c) => c.supabaseMcpUrl, apply: (c, v) => { c.supabaseMcpUrl = v; } },
     { env: 'SUPABASE_ACCESS_TOKEN', resolve: (c) => c.supabaseAccessToken, apply: (c, v) => { c.supabaseAccessToken = v; } },
 ];
@@ -1016,7 +1017,9 @@ async function handleStatus() {
 
     // AI Agents
     console.log(colors.text.bold('\n  AI Agents'));
-    for (const name of agentNames) {
+
+    // Check all agents concurrently
+    const statusPromises = agentNames.map(async (name) => {
         const agentConfig = config.agents[name] || {};
         const agent = createAgent(name, agentConfig);
         const available = await agent.isAvailable();
@@ -1031,7 +1034,12 @@ async function handleStatus() {
         else if (name === 'groq') color = colors.groq;
         else color = colors.primary;
 
-        console.log(`  ${status}  ${color.bold(name)}`);
+        return `  ${status}  ${color.bold(name)}`;
+    });
+
+    const statuses = await Promise.all(statusPromises);
+    for (const statusLine of statuses) {
+        console.log(statusLine);
     }
 
     // Messaging
@@ -1722,8 +1730,8 @@ async function main() {
     const cleanup = () => {
         stopNgrok();
         slackDisconnect();
-        tgDisconnect().catch(() => { });
-        waDisconnect().catch(() => { });
+        tgDisconnect().catch(() => { /* ignore error during shutdown */ });
+        waDisconnect().catch(() => { /* ignore error during shutdown */ });
     };
 
     process.on('SIGINT', () => {
