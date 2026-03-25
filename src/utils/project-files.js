@@ -67,7 +67,8 @@ export function listProjectFiles(rootDirs) {
         // Filter out env files, binary files, node_modules
         const filtered = filePaths.filter(relPath => {
             const absPath = resolve(absRoot, relPath);
-            if (!absPath.startsWith(absRoot)) return false;
+            const rel = relative(absRoot, absPath);
+            if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return false;
 
             const fileName = basename(relPath);
             if (isEnvFile(fileName)) return false;
@@ -109,7 +110,8 @@ export function readProjectFile(rootDirs, filePath) {
         const absPath = resolve(absRoot, targetPath);
 
         // Security: must stay within THIS root
-        if (!absPath.startsWith(absRoot) || !existsSync(absPath)) {
+        const rel = relative(absRoot, absPath);
+        if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel) || !existsSync(absPath)) {
             continue;
         }
 
