@@ -63,7 +63,7 @@ const DEFAULT_CONFIG = {
 
 export function ensureConfigDir() {
     if (!existsSync(CONFIG_DIR)) {
-        mkdirSync(CONFIG_DIR, { recursive: true });
+        mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
     }
 }
 
@@ -92,7 +92,7 @@ export function loadConfig() {
 
 export function saveConfig(config) {
     ensureConfigDir();
-    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
 }
 
 export function syncConfigToEnv() {
