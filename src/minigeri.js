@@ -1577,8 +1577,14 @@ async function main() {
 
     rl.on('line', async (line) => {
         isExecuting = true;
-        // Cleanly wipe the ghost suggestion text that was left on the previous line
-        process.stdout.write('\x1B[1A\x1B[2K\x1B[0G' + rl._prompt + line + '\n');
+        // Cleanly wipe the ghost suggestion text that was left on the previous line.
+        // Account for terminal wrapping: the prompt+input may span multiple rows, so
+        // we must move up by the actual number of rows used (not always just 1).
+        const termWidth = process.stdout.columns || 80;
+        const promptPlain = (rl._prompt || '').replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+        const totalChars = promptPlain.length + line.length;
+        const rowsUsed = Math.max(1, Math.ceil(totalChars / termWidth));
+        process.stdout.write(`\x1B[${rowsUsed}A\x1B[0J` + rl._prompt + line + '\n');
 
         const input = line.trim();
 
