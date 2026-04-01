@@ -1,22 +1,32 @@
 import { colors, drawBox } from './theme.js';
 
 export function getHelpText() {
-    return `🤖 *minigeri messaging help*
+    return `🤖 *minigeri* — your remote AI assistant
 
-*Available commands:*
-• \`/gemini <prompt>\` — Talk to Gemini
-• \`/claude <prompt>\` — Talk to Claude
-• \`/ollama <prompt>\` — Talk to Ollama (local)
-• \`/groq <prompt>\` — Talk to Groq (cloud, fast)
-• \`/folder\` — Show current working directory
-• \`/workspace <cmd>\` — Manage virtual workspaces (show, activate, deactivate)
-• \`/ngrok\` — Start ngrok tunnel on port 8080
-• \`/cmd <cmd>\` — Run safe remote commands (cd, mkdir, ls)
-• \`help\` — Show this help message
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 *AI Agents*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✨ \`/gemini <prompt>\`  — Google Gemini
+🟣 \`/claude <prompt>\`  — Anthropic Claude
+🦙 \`/ollama <prompt>\`  — Local Ollama model
+⚡ \`/groq <prompt>\`    — Groq (cloud, fast)
 
-*Examples:*
-• \`/gemini What is the capital of France?\`
-• \`/claude Suggest 3 names for a cat\``;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🛠️ *Tools & Utilities*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 \`/folder\`            — Show working directory
+🗂️ \`/workspace <cmd>\`  — Manage workspaces
+🌐 \`/ngrok\`             — Start ngrok tunnel
+💻 \`/cmd <command>\`     — Run safe shell commands
+❓ \`help\`               — Show this message
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💡 *Examples*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+\`/gemini What is the capital of France?\`
+\`/claude Suggest 3 names for a cat\`
+\`/cmd ls -la\`
+\`/workspace show\``;
 }
 
 export function showHelp() {
