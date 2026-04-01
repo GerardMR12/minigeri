@@ -1,4 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
+import { resolve } from 'path';
+import { existsSync } from 'fs';
 import { colors, icons } from '../ui/theme.js';
 import { createAgent } from '../agents/index.js';
 import { getAgent, loadConfig } from '../config.js';
@@ -297,6 +299,26 @@ async function handleIncomingMessage(msg, botInstance) {
                 console.log(colors.telegram(`  [Running secure command via Telegram: ${cmdStr}]`));
                 const response = await handleSafeCommand(cmdStr);
                 botInstance.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+            }
+        } else if (textStr.startsWith('/file ') || textStr === '/file') {
+            const filePath = textStr.substring(6).trim();
+            if (!filePath) {
+                botInstance.sendMessage(chatId, 'Please provide a file path. Example: /file README.md');
+            } else {
+                const resolved = resolve(process.cwd(), filePath);
+                if (!resolved.startsWith(process.cwd())) {
+                    botInstance.sendMessage(chatId, '❌ Access denied: path is outside the working directory.');
+                } else if (!existsSync(resolved)) {
+                    botInstance.sendMessage(chatId, `❌ File not found: \`${filePath}\``, { parse_mode: 'Markdown' });
+                } else {
+                    try {
+                        await botInstance.sendDocument(chatId, resolved);
+                        console.log(colors.telegram(`  ${icons.check} Sent file to Telegram: ${resolved}`));
+                    } catch (err) {
+                        botInstance.sendMessage(chatId, `❌ Failed to send file: ${err.message}`);
+                        console.log(colors.error(`  ${icons.cross} Failed to send file: ${err.message}`));
+                    }
+                }
             }
         } else if (textStr.startsWith('/workspace ') || textStr === '/workspace') {
             const cmdStr = textStr.substring(1).trim(); // Remove leading slash

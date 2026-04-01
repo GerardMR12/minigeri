@@ -18,6 +18,7 @@ export function getHelpText() {
 🗂️ \`/workspace <cmd>\`  — Manage workspaces
 🌐 \`/ngrok\`             — Start ngrok tunnel
 💻 \`/cmd <command>\`     — Run safe shell commands
+📎 \`/file <path>\`       — Send a file to Telegram
 ❓ \`help\`               — Show this message
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -26,7 +27,8 @@ export function getHelpText() {
 \`/gemini What is the capital of France?\`
 \`/claude Suggest 3 names for a cat\`
 \`/cmd ls -la\`
-\`/workspace show\``;
+\`/workspace show\`
+\`/file README.md\``;
 }
 
 export function showHelp() {
@@ -116,6 +118,11 @@ export function showHelp() {
     console.log(`  ${colors.telegram.bold('tg chats')}                      ${colors.text('List recent chats')}`);
     console.log(`  ${colors.telegram.bold('tg status')}                     ${colors.text('Check Telegram bot status')}`);
     console.log(`  ${colors.telegram.bold('tg disconnect')}                 ${colors.text('Disconnect Telegram bot')}`);
+    console.log('');
+    console.log(colors.telegram.bold('  Telegram Bot Commands'));
+    console.log(colors.muted('  ─────────────────────────────────────────────'));
+    console.log(`  ${colors.telegram.bold('/file')} ${colors.muted('<path>')}                 ${colors.text('Send a file to your Telegram chat')}`);
+    console.log(colors.muted('  Example: /file README.md  or  /file ./docs/guide.txt'));
     console.log('');
 
     // ── Ngrok ──
