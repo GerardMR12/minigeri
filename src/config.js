@@ -60,6 +60,7 @@ const DEFAULT_CONFIG = {
     theme: 'default',
     workspaces: {},
     activeWorkspace: null,
+    allowedCmdCommands: ['cd', 'mkdir', 'ls'],
 };
 
 export function ensureConfigDir() {

@@ -1,9 +1,13 @@
 import { execFile } from 'child_process';
 import util from 'util';
+import { loadConfig } from '../config.js';
 
 const execFilePromise = util.promisify(execFile);
 
-const ALLOWED_COMMANDS = ['cd', 'mkdir', 'ls', 'flutter'];
+function getAllowedCommands() {
+    const config = loadConfig();
+    return config.allowedCmdCommands || ['cd', 'mkdir', 'ls'];
+}
 
 /**
  * Handle safe remote commands
@@ -19,6 +23,7 @@ export async function handleSafeCommand(cmdStr) {
 
     const command = parts[0];
     const args = parts.slice(1).map(p => p.replace(/^"|"$/g, ''));
+    const ALLOWED_COMMANDS = getAllowedCommands();
 
     if (!ALLOWED_COMMANDS.includes(command)) {
         return `❌ Error: Only ${ALLOWED_COMMANDS.map(c => `'${c}'`).join(', ')} are allowed for safety.`;
@@ -99,6 +104,7 @@ export async function handleSafeCommandInWorkspace(cmdStr, config) {
 
     const command = commandParts[0];
     const args = commandParts.slice(1).map(p => p.replace(/^"|"$/g, ''));
+    const ALLOWED_COMMANDS = getAllowedCommands();
 
     if (!ALLOWED_COMMANDS.includes(command) || command === 'cd') {
         return `❌ Error: Only ${ALLOWED_COMMANDS.filter(c => c !== 'cd').map(c => `'${c}'`).join(', ')} are allowed here ('cd' is not supported in workspace mode).`;

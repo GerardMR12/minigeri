@@ -920,6 +920,66 @@ async function handleConfig(args) {
     console.log(colors.muted('  Example: ') + colors.text('config set ANTHROPIC_API_KEY sk-...\n'));
 }
 
+async function handleCmdAllow(args) {
+    const subcommand = args[0]?.toLowerCase();
+    const config = loadConfig();
+
+    if (!subcommand || subcommand === 'list' || subcommand === 'ls') {
+        const allowed = config.allowedCmdCommands || [];
+        console.log(`\n  ${colors.primary.bold('Allowed /cmd Commands')}`);
+        console.log(colors.muted('  ─────────────────────────────────────────────'));
+        if (allowed.length === 0) {
+            console.log(colors.muted('  (none)'));
+        } else {
+            for (const cmd of allowed) {
+                console.log(`  ${colors.success(icons.check)} ${colors.text(cmd)}`);
+            }
+        }
+        console.log('');
+        return;
+    }
+
+    if (subcommand === 'add') {
+        const cmd = args[1];
+        if (!cmd) {
+            console.log(colors.warning(`\n  Usage: ${colors.primary('cmdallow add <command>')}\n`));
+            return;
+        }
+        const allowed = config.allowedCmdCommands || [];
+        if (allowed.includes(cmd)) {
+            console.log(colors.warning(`\n  '${cmd}' is already in the allowlist.\n`));
+            return;
+        }
+        config.allowedCmdCommands = [...allowed, cmd];
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} '${colors.primary(cmd)}' added to /cmd allowlist.\n`);
+        return;
+    }
+
+    if (subcommand === 'remove' || subcommand === 'rm') {
+        const cmd = args[1];
+        if (!cmd) {
+            console.log(colors.warning(`\n  Usage: ${colors.primary('cmdallow remove <command>')}\n`));
+            return;
+        }
+        const allowed = config.allowedCmdCommands || [];
+        if (!allowed.includes(cmd)) {
+            console.log(colors.warning(`\n  '${cmd}' is not in the allowlist.\n`));
+            return;
+        }
+        config.allowedCmdCommands = allowed.filter(c => c !== cmd);
+        saveConfig(config);
+        console.log(`\n  ${colors.success(icons.check)} '${colors.primary(cmd)}' removed from /cmd allowlist.\n`);
+        return;
+    }
+
+    console.log(`\n  ${colors.warning('Usage:')} ${colors.primary('cmdallow <list|add|remove> [command]')}`);
+    console.log(colors.muted('  Examples:'));
+    console.log(colors.muted('    cmdallow list'));
+    console.log(colors.muted('    cmdallow add git'));
+    console.log(colors.muted('    cmdallow remove flutter\n'));
+}
+
 async function handleWorkspace(args) {
     const subcommand = args[0]?.toLowerCase();
     const config = loadConfig();
@@ -1317,6 +1377,7 @@ registerCommand('folder', () => handleFolder());
 registerCommand('workspace', (args) => handleWorkspace(args));
 registerCommand('status', () => handleStatus());
 registerCommand('config', (args) => handleConfig(args));
+registerCommand('cmdallow', (args) => handleCmdAllow(args));
     registerCommand('update', () => handleUpdate());
     registerCommand('reinstall', () => handleReinstall());
     registerCommand('theme', (args) => handleTheme(args, null));
@@ -1405,7 +1466,7 @@ async function main() {
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
         'ngrok', 'ngrok stop', 'ngrok status',
-        'status', 'config set', 'config list', 'update', 'reinstall', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
+        'status', 'config set', 'config list', 'cmdallow list', 'cmdallow add', 'cmdallow remove', 'update', 'reinstall', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
         'workspace list', 'workspace create', 'workspace add', 'workspace use', 'workspace clear', 'workspace remove',
         'workspace activate', 'workspace deactivate', 'workspace show',
     ].sort();
@@ -1689,6 +1750,10 @@ async function main() {
 
                 case 'config':
                     await handleConfig(args);
+                    break;
+
+                case 'cmdallow':
+                    await handleCmdAllow(args);
                     break;
 
                 case 'status':
