@@ -1,13 +1,15 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 import { existsSync } from 'fs';
+import { homedir } from 'os';
 import { colors, icons } from '../ui/theme.js';
 import { createAgent } from '../agents/index.js';
 import { getAgent, loadConfig } from '../config.js';
 import { getHelpText } from '../ui/help.js';
-import { handleSafeCommand } from '../utils/cmd.js';
+import { handleSafeCommand, handleSafeCommandInWorkspace } from '../utils/cmd.js';
 import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
-import { handleNgrok } from './ngrok.js';
+import { handleNgrok, serveFileViaNgrok } from './ngrok.js';
+import { statSync } from 'fs';
 import { runCommand } from '../tools/index.js';
 
 let bot = null;
@@ -300,23 +302,58 @@ async function handleIncomingMessage(msg, botInstance) {
                 const response = await handleSafeCommand(cmdStr);
                 botInstance.sendMessage(chatId, response, { parse_mode: 'Markdown' });
             }
+        } else if (textStr.startsWith('/cmd-workspace ') || textStr === '/cmd-workspace') {
+            const cmdStr = textStr.substring(15).trim();
+            if (!cmdStr) {
+                botInstance.sendMessage(chatId, `Please provide a command. Example: /cmd-workspace flutter build\nOr target a specific alias: /cmd-workspace frontend ls`);
+            } else {
+                const config = loadConfig();
+                console.log(colors.telegram(`  [Running workspace command via Telegram: ${cmdStr}]`));
+                const response = await handleSafeCommandInWorkspace(cmdStr, config);
+                botInstance.sendMessage(chatId, response, { parse_mode: 'Markdown' });
+            }
         } else if (textStr.startsWith('/file ') || textStr === '/file') {
             const filePath = textStr.substring(6).trim();
             if (!filePath) {
                 botInstance.sendMessage(chatId, 'Please provide a file path. Example: /file README.md');
             } else {
                 const resolved = resolve(process.cwd(), filePath);
-                if (!resolved.startsWith(process.cwd())) {
+                const fileConfig = loadConfig();
+                const wsName = fileConfig?.activeWorkspace;
+                const wsFolders = wsName ? Object.values(fileConfig?.workspaces?.[wsName] || {}) : [];
+                const isUnderDir = (parent, child) => {
+                    const p = parent.endsWith('/') ? parent : parent + '/';
+                    return child.startsWith(p) || child === parent;
+                };
+                const wsSymlinkDir = wsName ? join(homedir(), '.cli-bot', 'workspaces', wsName) : null;
+                const inCwd = isUnderDir(process.cwd(), resolved);
+                const inWorkspace = wsFolders.some(folder => isUnderDir(folder, resolved))
+                    || (wsSymlinkDir != null && isUnderDir(wsSymlinkDir, resolved));
+                if (!inCwd && !inWorkspace) {
                     botInstance.sendMessage(chatId, '❌ Access denied: path is outside the working directory.');
                 } else if (!existsSync(resolved)) {
                     botInstance.sendMessage(chatId, `❌ File not found: \`${filePath}\``, { parse_mode: 'Markdown' });
                 } else {
-                    try {
-                        await botInstance.sendDocument(chatId, resolved);
-                        console.log(colors.telegram(`  ${icons.check} Sent file to Telegram: ${resolved}`));
-                    } catch (err) {
-                        botInstance.sendMessage(chatId, `❌ Failed to send file: ${err.message}`);
-                        console.log(colors.error(`  ${icons.cross} Failed to send file: ${err.message}`));
+                    const TELEGRAM_MAX_BYTES = 50 * 1024 * 1024;
+                    const fileSize = statSync(resolved).size;
+                    if (fileSize > TELEGRAM_MAX_BYTES) {
+                        try {
+                            botInstance.sendMessage(chatId, `⏳ File is ${(fileSize / 1024 / 1024).toFixed(1)} MB — too large for Telegram. Generating download link via ngrok...`);
+                            const url = await serveFileViaNgrok(resolved);
+                            botInstance.sendMessage(chatId, `📥 *Download link* (expires after 1 download or 5 min):\n${url}`, { parse_mode: 'Markdown' });
+                            console.log(colors.telegram(`  ${icons.check} Serving large file via ngrok: ${resolved}`));
+                        } catch (err) {
+                            botInstance.sendMessage(chatId, `❌ Could not generate download link: ${err.message}`);
+                            console.log(colors.error(`  ${icons.cross} serveFileViaNgrok failed: ${err.message}`));
+                        }
+                    } else {
+                        try {
+                            await botInstance.sendDocument(chatId, resolved);
+                            console.log(colors.telegram(`  ${icons.check} Sent file to Telegram: ${resolved}`));
+                        } catch (err) {
+                            botInstance.sendMessage(chatId, `❌ Failed to send file: ${err.message}`);
+                            console.log(colors.error(`  ${icons.cross} Failed to send file: ${err.message}`));
+                        }
                     }
                 }
             }
