@@ -16,7 +16,13 @@ export function execAgent(command, args = [], options = {}) {
         const stderr = [];
         const silent = options.silent || false;
 
-        const proc = spawn(command, args, {
+        // On Windows, spawn with shell:true joins args with spaces but does not
+        // quote them, so args containing spaces get split by the shell.
+        const spawnArgs = process.platform === 'win32'
+            ? args.map(a => (typeof a === 'string' && a.includes(' ')) ? `"${a}"` : a)
+            : args;
+
+        const proc = spawn(command, spawnArgs, {
             stdio: ['inherit', 'pipe', 'pipe'],
             shell: process.platform === 'win32',
 
