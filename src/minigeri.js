@@ -834,6 +834,9 @@ const CONFIG_KEYS = [
     { env: 'SLACK_BOT_TOKEN', resolve: (c) => c.slackBotToken, apply: (c, v) => { c.slackBotToken = v; } },
     { env: 'TELEGRAM_BOT_TOKEN', resolve: (c) => c.telegramBotToken, apply: (c, v) => { c.telegramBotToken = v; } },
     { env: 'TELEGRAM_ALLOWED_USERS', resolve: (c) => c.telegramAllowedUsers, apply: (c, v) => { c.telegramAllowedUsers = v; } },
+    { env: 'TELEGRAM_API_ID', resolve: (c) => c.telegramApiId, apply: (c, v) => { c.telegramApiId = v; } },
+    { env: 'TELEGRAM_API_HASH', resolve: (c) => c.telegramApiHash, apply: (c, v) => { c.telegramApiHash = v; } },
+    { env: 'TELEGRAM_USER_SESSION', resolve: (c) => c.telegramUserSession, apply: (c, v) => { c.telegramUserSession = v; } },
     { env: 'WHATSAPP_ALLOWED_USERS', resolve: (c) => c.whatsappAllowedUsers, apply: (c, v) => { c.whatsappAllowedUsers = v; } },
     { env: 'SUPABASE_MCP_URL', resolve: (c) => c.supabaseMcpUrl, apply: (c, v) => { c.supabaseMcpUrl = v; } },
     { env: 'SUPABASE_ACCESS_TOKEN', resolve: (c) => c.supabaseAccessToken, apply: (c, v) => { c.supabaseAccessToken = v; } },
@@ -898,6 +901,8 @@ async function handleConfig(args) {
             'xoxb-your-slack-bot-token-here',
             'your-telegram-bot-token-here',
             'your-telegram-user-id-here',
+            'your_telegram_api_id_here',
+            'your_telegram_api_hash_here',
             'your_supabase_mcp_url_here',
             'your_supabase_access_token_here'
         ]);
@@ -1465,6 +1470,7 @@ async function main() {
         'wa connect', 'wa send', 'wa status', 'wa disconnect',
         'slack connect', 'slack send', 'slack read', 'slack channels', 'slack status', 'slack disconnect',
         'tg connect', 'tg send', 'tg chats', 'tg status', 'tg disconnect',
+        'tg user setup', 'tg user sendfile', 'tg user status',
         'ngrok', 'ngrok stop', 'ngrok status',
         'status', 'config set', 'config list', 'cmdallow list', 'cmdallow add', 'cmdallow remove', 'update', 'reinstall', 'tutorial', 'help', 'clear', 'exit', 'quit', 'folder', 'cd', 'theme <theme-id>', 'theme list', 'uninstall',
         'workspace list', 'workspace create', 'workspace add', 'workspace use', 'workspace clear', 'workspace remove',

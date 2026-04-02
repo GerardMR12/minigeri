@@ -56,6 +56,9 @@ const DEFAULT_CONFIG = {
     slackBotToken: process.env.SLACK_BOT_TOKEN || '',
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
     telegramAllowedUsers: process.env.TELEGRAM_ALLOWED_USERS || '',
+    telegramApiId: process.env.TELEGRAM_API_ID || '',
+    telegramApiHash: process.env.TELEGRAM_API_HASH || '',
+    telegramUserSession: process.env.TELEGRAM_USER_SESSION || '',
     whatsappAllowedUsers: process.env.WHATSAPP_ALLOWED_USERS || '',
     theme: 'default',
     workspaces: {},
@@ -106,6 +109,9 @@ export function syncConfigToEnv() {
     if (config.slackBotToken) process.env.SLACK_BOT_TOKEN = config.slackBotToken;
     if (config.telegramBotToken) process.env.TELEGRAM_BOT_TOKEN = config.telegramBotToken;
     if (config.telegramAllowedUsers) process.env.TELEGRAM_ALLOWED_USERS = config.telegramAllowedUsers;
+    if (config.telegramApiId) process.env.TELEGRAM_API_ID = config.telegramApiId;
+    if (config.telegramApiHash) process.env.TELEGRAM_API_HASH = config.telegramApiHash;
+    if (config.telegramUserSession) process.env.TELEGRAM_USER_SESSION = config.telegramUserSession;
     if (config.whatsappAllowedUsers) process.env.WHATSAPP_ALLOWED_USERS = config.whatsappAllowedUsers;
 }
 

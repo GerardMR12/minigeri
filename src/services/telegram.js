@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api';
 import { resolve, join } from 'path';
-import { existsSync } from 'fs';
+import { existsSync, statSync } from 'fs';
 import { homedir } from 'os';
 import { colors, icons } from '../ui/theme.js';
 import { createAgent } from '../agents/index.js';
@@ -9,7 +9,7 @@ import { getHelpText } from '../ui/help.js';
 import { handleSafeCommand, handleSafeCommandInWorkspace } from '../utils/cmd.js';
 import { formatTelegramMarkdown, splitTelegramMessage } from '../utils/telegram-format.js';
 import { handleNgrok, serveFileViaNgrok } from './ngrok.js';
-import { statSync } from 'fs';
+import { tgMtprotoAvailable, tgSendLargeFileToSelf } from './telegram-mtproto.js';
 import { runCommand } from '../tools/index.js';
 
 let bot = null;
@@ -338,14 +338,41 @@ async function handleIncomingMessage(msg, botInstance) {
                     const TELEGRAM_MAX_BYTES = 50 * 1024 * 1024;
                     const fileSize = statSync(resolved).size;
                     if (fileSize > TELEGRAM_MAX_BYTES) {
-                        try {
-                            botInstance.sendMessage(chatId, `⏳ File is ${(fileSize / 1024 / 1024).toFixed(1)} MB — too large for Telegram. Generating download link via ngrok...`);
-                            const url = await serveFileViaNgrok(resolved);
-                            botInstance.sendMessage(chatId, `📥 *Download link* (expires after 1 download or 5 min):\n${url}`, { parse_mode: 'Markdown' });
-                            console.log(colors.telegram(`  ${icons.check} Serving large file via ngrok: ${resolved}`));
-                        } catch (err) {
-                            botInstance.sendMessage(chatId, `❌ Could not generate download link: ${err.message}`);
-                            console.log(colors.error(`  ${icons.cross} serveFileViaNgrok failed: ${err.message}`));
+                        const sizeMB = (fileSize / 1024 / 1024).toFixed(1);
+                        if (tgMtprotoAvailable()) {
+                            try {
+                                await botInstance.sendMessage(chatId, `⏳ File is ${sizeMB} MB — uploading to your Saved Messages via MTProto...`);
+                                console.log(colors.telegram(`  Uploading large file via MTProto: ${resolved}`));
+                                await tgSendLargeFileToSelf(resolved, (pct) => {
+                                    process.stdout.write(`\r  MTProto upload: ${pct}%   `);
+                                });
+                                process.stdout.write('\r');
+                                await botInstance.sendMessage(chatId, `✅ File sent to your *Saved Messages* on Telegram!\n\nOpen the Saved Messages chat in your Telegram app to download it.`, { parse_mode: 'Markdown' });
+                                console.log(colors.telegram(`  ${icons.check} Large file uploaded via MTProto: ${resolved}`));
+                            } catch (err) {
+                                process.stdout.write('\r');
+                                console.log(colors.error(`  ${icons.cross} MTProto upload failed: ${err.message}`));
+                                // Fall back to ngrok if MTProto upload fails
+                                try {
+                                    await botInstance.sendMessage(chatId, `⚠️ MTProto upload failed, trying ngrok fallback...`);
+                                    const url = await serveFileViaNgrok(resolved);
+                                    botInstance.sendMessage(chatId, `📥 *Download link* (expires after 1 download or 5 min):\n${url}`, { parse_mode: 'Markdown' });
+                                    console.log(colors.telegram(`  ${icons.check} Fell back to ngrok: ${resolved}`));
+                                } catch (ngrokErr) {
+                                    botInstance.sendMessage(chatId, `❌ Could not deliver file: ${ngrokErr.message}`);
+                                    console.log(colors.error(`  ${icons.cross} ngrok fallback also failed: ${ngrokErr.message}`));
+                                }
+                            }
+                        } else {
+                            try {
+                                botInstance.sendMessage(chatId, `⏳ File is ${sizeMB} MB — too large for Telegram. Generating download link via ngrok...`);
+                                const url = await serveFileViaNgrok(resolved);
+                                botInstance.sendMessage(chatId, `📥 *Download link* (expires after 1 download or 5 min):\n${url}`, { parse_mode: 'Markdown' });
+                                console.log(colors.telegram(`  ${icons.check} Serving large file via ngrok: ${resolved}`));
+                            } catch (err) {
+                                botInstance.sendMessage(chatId, `❌ Could not generate download link: ${err.message}`);
+                                console.log(colors.error(`  ${icons.cross} serveFileViaNgrok failed: ${err.message}`));
+                            }
                         }
                     } else {
                         try {
