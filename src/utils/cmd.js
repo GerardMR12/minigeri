@@ -40,7 +40,7 @@ export async function handleSafeCommand(cmdStr) {
     }
 
     try {
-        const { stdout, stderr } = await execFilePromise(command, args, { cwd: process.cwd() });
+        const { stdout, stderr } = await execFilePromise(command, args, { cwd: process.cwd(), shell: process.platform === 'win32' });
         let out = (stdout || '') + (stderr || '');
         if (!out) out = 'Success (no output)';
 
@@ -59,7 +59,7 @@ export async function handleSafeCommand(cmdStr) {
 
 async function runInFolder(command, args, cwd) {
     try {
-        const { stdout, stderr } = await execFilePromise(command, args, { cwd });
+        const { stdout, stderr } = await execFilePromise(command, args, { cwd, shell: process.platform === 'win32' });
         let out = (stdout || '') + (stderr || '');
         if (!out) out = 'Success (no output)';
         if (out.length > 2000) out = out.substring(0, 2000) + '\n(output truncated)';
