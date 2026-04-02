@@ -322,7 +322,8 @@ async function handleIncomingMessage(msg, botInstance) {
                 const wsName = fileConfig?.activeWorkspace;
                 const wsFolders = wsName ? Object.values(fileConfig?.workspaces?.[wsName] || {}) : [];
                 const isUnderDir = (parent, child) => {
-                    const p = parent.endsWith('/') ? parent : parent + '/';
+                    const sep = process.platform === 'win32' ? '\\' : '/';
+                    const p = parent.endsWith(sep) ? parent : parent + sep;
                     return child.startsWith(p) || child === parent;
                 };
                 const wsSymlinkDir = wsName ? join(homedir(), '.cli-bot', 'workspaces', wsName) : null;
