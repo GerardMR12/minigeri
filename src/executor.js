@@ -18,6 +18,7 @@ export function execAgent(command, args = [], options = {}) {
 
         const proc = spawn(command, args, {
             stdio: ['inherit', 'pipe', 'pipe'],
+            shell: process.platform === 'win32',
 
             ...options,
         });
@@ -55,6 +56,7 @@ export function execInteractive(command, args = [], options = {}) {
     return new Promise((resolve, reject) => {
         const proc = spawn(command, args, {
             stdio: 'inherit',
+            shell: process.platform === 'win32',
 
             ...options,
         });
