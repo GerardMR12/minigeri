@@ -123,7 +123,10 @@ export async function tgUserSendFile(filePath) {
     const session = new StringSession(sessionStr);
     const client = new TelegramClient(session, apiId, apiHash, {
         connectionRetries: 5,
+        shouldReconnect: false,
     });
+
+    suppressGramJsTimeouts();
 
     try {
         await client.connect();
@@ -163,6 +166,23 @@ export function tgMtprotoAvailable() {
 }
 
 /**
+ * GramJS's internal update loop emits TIMEOUT unhandled rejections after disconnect().
+ * This helper suppresses them for a short window while the loop settles.
+ * Only rejections whose stack traces originate from GramJS's updates.js are swallowed;
+ * everything else falls through to any other registered handlers (or Node's default).
+ */
+function suppressGramJsTimeouts() {
+    const handler = (reason) => {
+        if (reason?.message === 'TIMEOUT' && reason?.stack?.includes('updates.js')) return;
+        // Not our error — remove ourselves so we don't interfere further
+        process.off('unhandledRejection', handler);
+    };
+    process.on('unhandledRejection', handler);
+    // Remove after 10 s — more than enough for the update loop to fully shut down
+    setTimeout(() => process.off('unhandledRejection', handler), 10_000).unref();
+}
+
+/**
  * Send an already-resolved local file path to Saved Messages via MTProto.
  * Designed to be called programmatically (e.g. from the bot handler).
  *
@@ -176,8 +196,10 @@ export async function tgSendLargeFileToSelf(resolvedPath, onProgress) {
     const session = new StringSession(sessionStr);
     const client = new TelegramClient(session, apiId, apiHash, {
         connectionRetries: 5,
+        shouldReconnect: false,
     });
 
+    suppressGramJsTimeouts();
     await client.connect();
 
     try {
