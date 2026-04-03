@@ -125,8 +125,7 @@ export async function tgUserSendFile(filePath) {
         connectionRetries: 5,
         shouldReconnect: false,
     });
-
-    suppressGramJsTimeouts();
+    client._log.setLevel('none');
 
     try {
         await client.connect();
@@ -166,25 +165,6 @@ export function tgMtprotoAvailable() {
 }
 
 /**
- * GramJS's internal update loop emits TIMEOUT unhandled rejections after disconnect().
- * This helper suppresses them for a short window while the loop settles.
- * Only rejections whose stack traces originate from GramJS's updates.js are swallowed;
- * everything else falls through to any other registered handlers (or Node's default).
- */
-let _gramJsSuppressionActive = false;
-
-function suppressGramJsTimeouts() {
-    if (_gramJsSuppressionActive) return;
-    _gramJsSuppressionActive = true;
-
-    process.on('unhandledRejection', (reason) => {
-        if (reason?.message === 'TIMEOUT' && reason?.stack?.includes('updates.js')) return;
-        // Not our error — re-throw so Node's default handler picks it up
-        throw reason;
-    });
-}
-
-/**
  * Send an already-resolved local file path to Saved Messages via MTProto.
  * Designed to be called programmatically (e.g. from the bot handler).
  *
@@ -200,8 +180,8 @@ export async function tgSendLargeFileToSelf(resolvedPath, onProgress) {
         connectionRetries: 5,
         shouldReconnect: false,
     });
+    client._log.setLevel('none');
 
-    suppressGramJsTimeouts();
     await client.connect();
 
     try {
