@@ -171,15 +171,17 @@ export function tgMtprotoAvailable() {
  * Only rejections whose stack traces originate from GramJS's updates.js are swallowed;
  * everything else falls through to any other registered handlers (or Node's default).
  */
+let _gramJsSuppressionActive = false;
+
 function suppressGramJsTimeouts() {
-    const handler = (reason) => {
+    if (_gramJsSuppressionActive) return;
+    _gramJsSuppressionActive = true;
+
+    process.on('unhandledRejection', (reason) => {
         if (reason?.message === 'TIMEOUT' && reason?.stack?.includes('updates.js')) return;
-        // Not our error — remove ourselves so we don't interfere further
-        process.off('unhandledRejection', handler);
-    };
-    process.on('unhandledRejection', handler);
-    // Remove after 10 s — more than enough for the update loop to fully shut down
-    setTimeout(() => process.off('unhandledRejection', handler), 10_000).unref();
+        // Not our error — re-throw so Node's default handler picks it up
+        throw reason;
+    });
 }
 
 /**
