@@ -22,6 +22,29 @@ let geminiAgents = new Map(); // chatId → GeminiAgent (persistent for context)
 let claudeAgents = new Map(); // chatId → ClaudeAgent (persistent for context)
 
 /**
+ * Prune inactive agent instances to save memory.
+ * Removes agents that haven't been messaged in 1 hour if the cache is getting large.
+ */
+function pruneOldAgents() {
+    const ONE_HOUR = 60 * 60 * 1000;
+    const now = Date.now();
+    
+    // If we have more than 25 agents, start pruning
+    if (recentChats.size > 25) {
+        for (const [chatId, info] of recentChats.entries()) {
+            if (now - info.lastMessage > ONE_HOUR) {
+                ollamaAgents.delete(chatId);
+                groqAgents.delete(chatId);
+                geminiAgents.set(chatId, null); // Clear from memory
+                geminiAgents.delete(chatId);
+                claudeAgents.delete(chatId);
+                recentChats.delete(chatId);
+            }
+        }
+    }
+}
+
+/**
  * Parse the allowed Telegram user IDs from the environment.
  * Returns an empty set if not set (fails closed — highly recommended).
  * Returns a Set of allowed user ID strings if set.
@@ -227,6 +250,7 @@ export async function tgDisconnect() {
  * Handle incoming Telegram messages and route bot commands.
  */
 async function handleIncomingMessage(msg, botInstance) {
+    pruneOldAgents(); // Prevent memory leaks from old chats
     const chatId = msg.chat.id;
     const chatName = msg.chat.title || msg.chat.first_name || msg.chat.username || String(chatId);
     const sender = msg.from.first_name || msg.from.username || 'Unknown';
@@ -390,6 +414,14 @@ async function handleIncomingMessage(msg, botInstance) {
             console.log(colors.telegram(`  [Running workspace command via Telegram: ${cmdStr}]`));
             const response = await runCommand(cmdStr);
             botInstance.sendMessage(chatId, `🛠️ *Workspace Manager*\n\n${response}`, { parse_mode: 'Markdown' });
+        } else if (lowText === '/clear' || lowText === '/reset') {
+            const chatKey = String(chatId);
+            ollamaAgents.delete(chatKey);
+            groqAgents.delete(chatKey);
+            geminiAgents.delete(chatKey);
+            claudeAgents.delete(chatKey);
+            botInstance.sendMessage(chatId, `🧹 *History cleared.* All agent sessions have been reset for this chat.`, { parse_mode: 'Markdown' });
+            console.log(colors.telegram(`  ${icons.check} Cleared agent history for Telegram user ${chatId}`));
         } else if (textStr.startsWith('/gemini ') || textStr === '/gemini') {
             const config = loadConfig();
             agentName = config.geminiMode === 'api' ? 'gemini-api' : 'gemini-cli';

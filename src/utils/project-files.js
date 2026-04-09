@@ -83,6 +83,14 @@ export function listProjectFiles(rootDirs) {
         allFiles.push(...filtered.map(f => prefix + f));
     }
 
+    // Limit to 500 files to avoid sending multi-MB lists to the AI
+    const MAX_FILES = 500;
+    if (allFiles.length > MAX_FILES) {
+        const truncated = allFiles.slice(0, MAX_FILES);
+        truncated.push(`\n... and ${allFiles.length - MAX_FILES} more files (truncated for efficiency)`);
+        return truncated;
+    }
+
     return allFiles;
 }
 

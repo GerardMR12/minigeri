@@ -73,10 +73,33 @@ export class GeminiApiAgent extends BaseAgent {
                 if (!silent) process.stdout.write(result.text);
                 this.messages.push({ role: 'model', parts: [{ text: result.text }] });
             }
+            this.truncateHistory();
             return result.text;
         }
 
+        this.truncateHistory();
         return '';
+    }
+
+    /**
+     * Override truncateHistory for Gemini role naming.
+     */
+    truncateHistory() {
+        const limit = this.maxTurns * 5;
+        if (this.messages.length <= limit) return;
+
+        // Gemini doesn't have a 'system' role in messages list (it's a separate parameter)
+        // so we don't need to preserve a system message here.
+        this.messages = this.messages.slice(-limit);
+
+        // Ensure we start with a 'user' message
+        while (this.messages.length > 0) {
+            if (this.messages[0].role !== 'user') {
+                this.messages.shift();
+            } else {
+                break;
+            }
+        }
     }
 
     /**

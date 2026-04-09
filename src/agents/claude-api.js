@@ -67,9 +67,11 @@ export class ClaudeApiAgent extends BaseAgent {
             if (result.text) {
                 this.messages.push({ role: 'assistant', content: result.text });
             }
+            this.truncateHistory();
             return result.text;
         }
 
+        this.truncateHistory();
         return '';
     }
 

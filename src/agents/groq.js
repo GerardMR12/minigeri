@@ -92,9 +92,11 @@ export class GroqAgent extends BaseAgent {
             if (result.content) {
                 this.messages.push({ role: 'assistant', content: result.content });
             }
+            this.truncateHistory();
             return result.content;
         }
 
+        this.truncateHistory();
         return '';
     }
 

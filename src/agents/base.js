@@ -21,6 +21,49 @@ export class BaseAgent {
          * Format varies by provider but is always an array.
          */
         this.messages = [];
+
+        /**
+         * Maximum number of conversation turns to keep in memory.
+         * One turn = 1 user message + 1 assistant response (including tool calls).
+         * Default to 20 turns to keep context manageable.
+         */
+        this.maxTurns = config.maxTurns || 20;
+    }
+
+    /**
+     * Truncate messages to stay within the max turns limit.
+     * Keeps the oldest message if it's a system message, otherwise just keeps the latest.
+     * Implementation varies by provider but we aim for a reasonable default.
+     */
+    truncateHistory() {
+        // One turn is usually User + (Assistant/Tool blocks).
+        // On average 4-6 messages per turn if tools are used.
+        // We'll keep at most maxTurns * 5 messages.
+        const limit = this.maxTurns * 5;
+        if (this.messages.length <= limit) return;
+
+        // Find the system message if it exists at the start
+        const hasSystem = this.messages.length > 0 && this.messages[0].role === 'system';
+        const systemMsg = hasSystem ? this.messages[0] : null;
+
+        // Keep the last 'limit' messages
+        this.messages = this.messages.slice(-limit);
+
+        // If we lost the system message, put it back at the start
+        if (systemMsg && this.messages[0] !== systemMsg) {
+            this.messages.unshift(systemMsg);
+        }
+
+        // Ensure we don't start with a 'tool' response or 'model' part that needs a previous turn
+        // (This is provider-specific, but let's do a basic check)
+        while (this.messages.length > (hasSystem ? 1 : 0)) {
+            const first = this.messages[hasSystem ? 1 : 0];
+            if (first.role === 'tool' || first.role === 'assistant' || first.role === 'model') {
+                this.messages.splice(hasSystem ? 1 : 0, 1);
+            } else {
+                break;
+            }
+        }
     }
 
     /**
